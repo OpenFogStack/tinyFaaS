@@ -1,0 +1,7 @@
+{
+  "name": "sieve-of-erasthostenes",
+  "version": "1.0.0",
+  "description": "Computer Prime Numbers between 1 and 1000",
+  "main": "sieve.js",
+  "author": "Tobias Pfandzelter"
+}
