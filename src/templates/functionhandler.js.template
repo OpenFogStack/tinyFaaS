@@ -1,0 +1,13 @@
+'use strict';
+
+const handler = require('%%%PACKAGENAME%%%');
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  if(req.url == '/run') {
+    res.end(handler.eventhandler());
+  } else {
+    res.end()
+  }
+});
+server.listen(8000);
