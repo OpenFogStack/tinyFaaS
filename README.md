@@ -1,7 +1,31 @@
 # tinyFaaS
+
 A Lightweight FaaS Platform for Edge Environments
 
-## Build
+**Please note that this paper is still pending publication!**
+If you use this software in a publication, please cite it as:
+
+### Text
+Tobias, David Bermbach. **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**. In: Proceedings of the 2nd IEEE International Conference on Fog Computing 2020 (ICFC 2020). IEEE 2020.
+
+### BibTeX
+```
+@inproceedings{pfandzelter_tinyfaas:_2020,
+	title = {tinyFaaS: A Lightweight FaaS Platform for Edge Environments},
+	booktitle = {Proceedings of the Second {IEEE} {International} {Conference} on {Fog} {Computing} 2020 (ICFC 2020)},
+	author = {Pfandzelter, Tobias and Bermbach, David},
+	year = {2020},
+	publisher = {IEEE}
+}
+```
+
+For a full list of publications, please see [our website](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/).
+
+## License
+
+The code in this repository is licensed under the terms of the [Apache 2.0](./LICENSE) license.
+
+## Instructions
 
 To start this tinyFaaS implementation, simply build and start the management service in a Docker container. It will then create the gateway in a separate container.
 
