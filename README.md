@@ -2,7 +2,6 @@
 
 A Lightweight FaaS Platform for Edge Environments
 
-**Please note that this paper is still pending publication!**
 If you use this software in a publication, please cite it as:
 
 ### Text
