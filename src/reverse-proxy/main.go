@@ -26,7 +26,7 @@ func handleFunctionCall(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.M
 
 		if ok {
 			// call function and return results
-			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/run")
 
 			if err != nil {
 				return &coap.Message{
