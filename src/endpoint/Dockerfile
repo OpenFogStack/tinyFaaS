@@ -1,7 +1,7 @@
 FROM golang
 
 EXPOSE 80/tcp
-EXPOSE 5683/udp
+EXPOSE 5683/tcp
 
 WORKDIR /go/src/app
 COPY . .
