@@ -5,13 +5,13 @@ module.exports = {
     for (i = 2; i <= max; ++i) {
 
         if (!sieve[i]) {
-            console.log("Found prime: " + i);
             primes.push(i);
             for (j = i << 1; j <= max; j += i) {
                 sieve[j] = true;
             }
         }
     }
+    console.log("Found primes: " + primes.toString());
 
     return JSON.stringify({
       response_code: "2.05",

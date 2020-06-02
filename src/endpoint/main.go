@@ -57,6 +57,7 @@ func main() {
 		director := func(req *http.Request) {
 			handler := ""
 			for path := range functions {
+
 				if strings.HasPrefix(req.URL.Path, "/"+path) {
 					handler = path
 				}
@@ -66,7 +67,7 @@ func main() {
 			if ok {
 				dest, _ := url.Parse("http://" + urls[rand.Intn(len(urls))] + ":8000")
 				req.URL.Host = dest.Host
-				req.URL.Path = strings.Replace(req.URL.Path, handler, "run", 1)
+				req.URL.Path = strings.Replace(req.URL.Path, handler, "", 1)
 			}
 			req.URL.Scheme = "http"
 
