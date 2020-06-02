@@ -1,12 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"math/rand"
 	"net"
 	"net/http"
-  "bytes"
 
 	"github.com/dustin/go-coap"
 )
@@ -14,7 +14,7 @@ import (
 var functions map[string][]string
 
 type function_info struct {
-	Function_resource   string `json:"function_resource"`
+	Function_resource   string   `json:"function_resource"`
 	Function_containers []string `json:"function_containers"`
 }
 
@@ -68,43 +68,43 @@ func handleFunctionCall(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.M
 }
 
 func main() {
-  functions = make(map[string][]string)
+	functions = make(map[string][]string)
 
-  mux := coap.NewServeMux()
-  mux.Handle("/functions", coap.FuncHandler(handleFunctionCall))
+	mux := coap.NewServeMux()
+	mux.Handle("/functions", coap.FuncHandler(handleFunctionCall))
 
-  go func() {
-    http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-      if r.Method == "POST" {
-        buf := new(bytes.Buffer)
-        buf.ReadFrom(r.Body)
-        newStr := buf.String()
+	go func() {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				buf := new(bytes.Buffer)
+				buf.ReadFrom(r.Body)
+				newStr := buf.String()
 
-        var f function_info
-        err := json.Unmarshal([]byte(newStr), &f)
+				var f function_info
+				err := json.Unmarshal([]byte(newStr), &f)
 
-        if err != nil {
-          return
-        }
+				if err != nil {
+					return
+				}
 
-        if f.Function_resource[0] == '/' {
-          f.Function_resource = f.Function_resource[1:]
-        }
+				if f.Function_resource[0] == '/' {
+					f.Function_resource = f.Function_resource[1:]
+				}
 
-        functions[f.Function_resource] = f.Function_containers
+				functions[f.Function_resource] = f.Function_containers
 
-        mux.Handle(f.Function_resource, coap.FuncHandler(handleFunctionCall))
+				mux.Handle(f.Function_resource, coap.FuncHandler(handleFunctionCall))
 
-        return
+				return
 
-      }
-    })
+			}
+		})
 
-    http.ListenAndServe(":80", nil)
-  }()
+		http.ListenAndServe(":80", nil)
+	}()
 
-  func() {
-    coap.ListenAndServe("udp", ":5683", mux)
-  }()
+	func() {
+		coap.ListenAndServe("udp", ":5683", mux)
+	}()
 
 }
