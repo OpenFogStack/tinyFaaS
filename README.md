@@ -5,9 +5,11 @@ A Lightweight FaaS Platform for Edge Environments
 If you use this software in a publication, please cite it as:
 
 ### Text
-Tobias, David Bermbach. **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**. In: Proceedings of the 2nd IEEE International Conference on Fog Computing 2020 (ICFC 2020). IEEE 2020.
+
+Tobias Pfandzelter, David Bermbach. **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**. In: Proceedings of the 2nd IEEE International Conference on Fog Computing 2020 (ICFC 2020). IEEE 2020.
 
 ### BibTeX
+
 ```
 @inproceedings{pfandzelter_tinyfaas:_2020,
 	title = {tinyFaaS: A Lightweight FaaS Platform for Edge Environments},
@@ -22,7 +24,7 @@ For a full list of publications, please see [our website](https://www.mcc.tu-ber
 
 ## License
 
-The code in this repository is licensed under the terms of the [Apache 2.0](./LICENSE) license.
+The code in this repository is licensed under the terms of the [MIT](./LICENSE) license.
 
 ## Instructions
 
