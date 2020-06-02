@@ -4,6 +4,6 @@ const handler = require('%%%PACKAGENAME%%%');
 const http = require('http');
 
 const server = http.createServer((req, res) => {
-  res.end(handler.eventhandler());
+  handler.eventhandler(req, res);
 });
 server.listen(8000);

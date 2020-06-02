@@ -1,5 +1,6 @@
 module.exports = {
-  eventhandler: function () {
+  eventhandler: function (req, res) {
+    console.log(req.url)
     const max = 1000;
     let sieve = [], i, j, primes = [];
     for (i = 2; i <= max; ++i) {
@@ -13,9 +14,11 @@ module.exports = {
     }
     console.log("Found primes: " + primes.toString());
 
-    return JSON.stringify({
+
+    res.end(JSON.stringify({
       response_code: "2.05",
       payload: primes.toString()
-    });
+    }));
+    
   }
 }
