@@ -6,4 +6,7 @@ docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tiny
 sleep 5
 
 curl http://localhost:8080 --data '{"path": "sieve-of-erasthostenes", "resource": "/sieve/primes", "entry": "sieve.js", "threads": 4}'
-#aiocoap-client coap://localhost/sieve/primes
+
+sleep 1
+
+curl localhost:5683/sieve/primes

@@ -3,108 +3,81 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"fmt"
 	"math/rand"
-	"net"
 	"net/http"
-
-	"github.com/dustin/go-coap"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 )
 
 var functions map[string][]string
 
-type function_info struct {
-	Function_resource   string   `json:"function_resource"`
-	Function_containers []string `json:"function_containers"`
-}
-
-func handleFunctionCall(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
-
-	if m.IsConfirmable() {
-
-		handler, ok := functions[m.PathString()]
-
-		if ok {
-			// call function and return results
-			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/run")
-
-			if err != nil {
-				return &coap.Message{
-					Type: coap.Acknowledgement,
-					Code: coap.InternalServerError,
-				}
-			}
-
-			body, err := ioutil.ReadAll(resp.Body)
-
-			if err != nil {
-				return &coap.Message{
-					Type: coap.Acknowledgement,
-					Code: coap.InternalServerError,
-				}
-			}
-
-			res := &coap.Message{
-				Type:      coap.Acknowledgement,
-				Code:      coap.Content,
-				MessageID: m.MessageID,
-				Token:     m.Token,
-				Payload:   []byte(body),
-			}
-
-			res.SetOption(coap.ContentFormat, coap.TextPlain)
-
-			return res
-		} else {
-			return &coap.Message{
-				Type: coap.Acknowledgement,
-				Code: coap.NotFound,
-			}
-		}
-
-	}
-
-	return nil
+type functionInfo struct {
+	FunctionResource   string   `json:"function_resource"`
+	FunctionContainers []string `json:"function_containers"`
 }
 
 func main() {
 	functions = make(map[string][]string)
 
-	mux := coap.NewServeMux()
-	mux.Handle("/functions", coap.FuncHandler(handleFunctionCall))
-
 	go func() {
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		server := http.NewServeMux()
+
+		server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == "POST" {
 				buf := new(bytes.Buffer)
 				buf.ReadFrom(r.Body)
 				newStr := buf.String()
 
-				var f function_info
+				var f functionInfo
 				err := json.Unmarshal([]byte(newStr), &f)
 
 				if err != nil {
 					return
 				}
 
-				if f.Function_resource[0] == '/' {
-					f.Function_resource = f.Function_resource[1:]
+				if f.FunctionResource[0] == '/' {
+					f.FunctionResource = f.FunctionResource[1:]
 				}
 
-				functions[f.Function_resource] = f.Function_containers
-
-				mux.Handle(f.Function_resource, coap.FuncHandler(handleFunctionCall))
+				functions[f.FunctionResource] = f.FunctionContainers
 
 				return
 
 			}
 		})
 
-		http.ListenAndServe(":80", nil)
+		http.ListenAndServe(":80", server)
 	}()
 
 	func() {
-		coap.ListenAndServe("udp", ":5683", mux)
+		server := http.NewServeMux()
+
+		director := func(req *http.Request) {
+			handler := ""
+			for path := range functions {
+
+				if strings.HasPrefix(req.URL.Path, "/"+path) {
+					handler = path
+				}
+			}
+
+			urls, ok := functions[handler]
+			if ok {
+				dest, _ := url.Parse("http://" + urls[rand.Intn(len(urls))] + ":8000")
+				req.URL.Host = dest.Host
+				req.URL.Path = strings.Replace(req.URL.Path, "/"+handler, "", 1)
+			}
+			req.URL.Scheme = "http"
+		}
+		proxy := &httputil.ReverseProxy{Director: director}
+		server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			proxy.ServeHTTP(w, r)
+		})
+
+		err := http.ListenAndServe(":5683", server)
+		fmt.Println(err)
 	}()
 
 }

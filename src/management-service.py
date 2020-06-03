@@ -19,7 +19,7 @@ def create_endpoint(meta_container):
 
     endpoint_network = client.networks.create('endpoint-net', driver='bridge')
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/udp': 5683}, detach=True)
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/tcp': 5683}, detach=True)
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
