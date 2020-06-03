@@ -13,9 +13,9 @@ import (
 
 var functions map[string][]string
 
-type function_info struct {
-	Function_resource   string   `json:"function_resource"`
-	Function_containers []string `json:"function_containers"`
+type functionInfo struct {
+	FunctionResource   string   `json:"function_resource"`
+	FunctionContainers []string `json:"function_containers"`
 }
 
 func main() {
@@ -30,18 +30,18 @@ func main() {
 				buf.ReadFrom(r.Body)
 				newStr := buf.String()
 
-				var f function_info
+				var f functionInfo
 				err := json.Unmarshal([]byte(newStr), &f)
 
 				if err != nil {
 					return
 				}
 
-				if f.Function_resource[0] == '/' {
-					f.Function_resource = f.Function_resource[1:]
+				if f.FunctionResource[0] == '/' {
+					f.FunctionResource = f.FunctionResource[1:]
 				}
 
-				functions[f.Function_resource] = f.Function_containers
+				functions[f.FunctionResource] = f.FunctionContainers
 
 				return
 
