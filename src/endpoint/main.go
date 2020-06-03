@@ -67,10 +67,9 @@ func main() {
 			if ok {
 				dest, _ := url.Parse("http://" + urls[rand.Intn(len(urls))] + ":8000")
 				req.URL.Host = dest.Host
-				req.URL.Path = strings.Replace(req.URL.Path, handler, "", 1)
+				req.URL.Path = strings.Replace(req.URL.Path, "/"+handler, "", 1)
 			}
 			req.URL.Scheme = "http"
-
 		}
 		proxy := &httputil.ReverseProxy{Director: director}
 		server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

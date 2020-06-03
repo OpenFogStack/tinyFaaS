@@ -1,6 +1,5 @@
 module.exports = {
   eventhandler: function (req, res) {
-    console.log(req.url)
     const max = 1000;
     let sieve = [], i, j, primes = [];
     for (i = 2; i <= max; ++i) {

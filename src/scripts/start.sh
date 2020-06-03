@@ -9,4 +9,4 @@ curl http://localhost:8080 --data '{"path": "sieve-of-erasthostenes", "resource"
 
 sleep 1
 
-curl localhost:5683/sieve/prime
+curl localhost:5683/sieve/primes
