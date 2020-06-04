@@ -5,7 +5,7 @@ docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tiny
 
 sleep 5
 
-./scripts/upload.sh ../examples/sieve-of-erasthostenes/ /sieve/primes 4
-sleep 1
+#./scripts/upload.sh ../examples/sieve-of-erasthostenes/ /sieve/primes 4
+#sleep 1
 
-curl localhost:5683/sieve/primes
+#curl localhost:5683/sieve/primes
