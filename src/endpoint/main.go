@@ -41,7 +41,14 @@ func main() {
 					f.FunctionResource = f.FunctionResource[1:]
 				}
 
-				functions[f.FunctionResource] = f.FunctionContainers
+				if len(f.FunctionContainers) > 0 {
+					functions[f.FunctionResource] = f.FunctionContainers
+				} else {
+					_, ok := functions[f.FunctionResource]
+					if ok {
+						delete(functions, f.FunctionResource)
+					}
+				}
 
 				return
 

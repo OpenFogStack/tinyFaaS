@@ -1,5 +1,5 @@
 #!/bin/bash
-docker rm -f tinyfaas-mgmt
+docker rm -f tinyfaas-mgmt 2>/dev/null
 docker rm -f $(docker ps -a -q  --filter network=endpoint-net) 2>/dev/null
 for line in $(docker network ls --filter name=handler-net -q) ; do
     docker rm -f $(docker ps -a -q  --filter network=$line)
