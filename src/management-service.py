@@ -1,13 +1,15 @@
 import asyncio
 import tornado.ioloop
 import tornado.web
-
+import tarfile, io
+import base64
 import docker
 import json
 import uuid
 import shutil
 import urllib
 import sys
+import shutil
 
 CONFIG_PORT = 8080
 endpoint_container = {}
@@ -35,7 +37,7 @@ class FunctionHandler():
         shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
 
         # copy the folder ./handlers/[function_path] to handler-runtime/[function_path]
-        shutil.copytree('./handlers/' + function_path, './handler-runtime/' + self.name + '/' + function_path)
+        shutil.copytree('./tmp', './handler-runtime/' + self.name + '/' + function_path)
 
         # use the Dockerfile.template to create a custom Dockerfile with function_path
         with open('./templates/Dockerfile.template', 'rt') as fin:
@@ -77,33 +79,78 @@ class FunctionHandler():
         data = json.dumps(function_handler).encode('ascii')
 
         urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
+    def destroy(self):
+        function_handler = {
+            "function_resource": self.function_resource,
+            "function_containers": []
+        }
+        data = json.dumps(function_handler).encode('ascii')
+        urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
 
-class EndpointHandler(tornado.web.RequestHandler):
+
+        for container in self.this_containers:
+            container.remove(force=True)
+        self.this_network.reload()
+        for container in self.this_network.containers:
+            self.this_network.disconnect(container, force=True)
+        self.this_network.remove()
+
+        shutil.rmtree('./handler-runtime/' + self.name)
+        
+
+class UploadHandler(tornado.web.RequestHandler):
     async def post(self):
         try:
             # expected post body
             # {
-            #     path: 'handler-path',
-            #     resource: 'han/dler',
-            #     entry: 'handler.js',
-            #     threads: 2
+            #     resource: "/path/to/call",
+            #     threads: 2,
+            #     tarball: "base64-tarball"
             # }
             #
 
             function_data = tornado.escape.json_decode(self.request.body)
-
-            function_path = function_data['path']
-            function_resource = function_data['resource']
-            function_entry = function_data['entry']
             function_threads = function_data['threads']
+            function_resource = function_data['resource']
+            shutil.rmtree('./tmp', ignore_errors=True)
+            function_tarball = function_data['tarball']   
+            function_tarball = base64.b64decode(function_tarball)
 
-            function_name = str(uuid.uuid4()) + '-' + function_path + '-handler'
+            function_tarball_file = io.BytesIO(function_tarball)
+
+            tar = tarfile.open(fileobj=function_tarball_file)
+            tar.extractall(path='./tmp')
+
+            package_json = tornado.escape.json_decode(open('./tmp/package.json').read())
+
+            function_name = package_json['name'] + '-handler'
+            function_path = package_json['name']
+            function_entry = package_json['main']
+ 
+
+            if function_name in function_handlers:
+                function_handlers[function_name].destroy()
 
             function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads)
 
 
         except Exception as e:
             raise
+class DeleteHandler(tornado.web.RequestHandler):
+    async def post(self):
+        try:
+            handler_name = self.request.body.decode("utf-8") + '-handler'
+            # expected json {name: "function-name-from-pkg-json"}
+            if handler_name in function_handlers:
+                function_handlers[handler_name].destroy()
+                del function_handlers[handler_name]
+            else:
+                self.write("Not found")
+
+        except Exception as e:
+            raise
+
+
 
 def main(args):
     # read config data
@@ -123,7 +170,8 @@ def main(args):
 
     # accept incoming configuration requests and create handlers based on that
     app = tornado.web.Application([
-        (r'/', EndpointHandler),
+        (r'/upload', UploadHandler),
+        (r'/delete', DeleteHandler)
     ])
     app.listen(CONFIG_PORT)
     tornado.ioloop.IOLoop.current().start()

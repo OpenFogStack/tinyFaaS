@@ -22,7 +22,7 @@ For a full list of publications, please see [our website](https://www.mcc.tu-ber
 
 ## License
 
-The code in this repository is licensed under the terms of the [Apache 2.0](./LICENSE) license.
+The code in this repository is licensed under the terms of the [MIT](./LICENSE) license.
 
 ## Instructions
 
