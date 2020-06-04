@@ -10,7 +10,7 @@ import shutil
 import urllib
 import sys
 import shutil
-
+import hashlib
 CONFIG_PORT = 8080
 endpoint_container = {}
 function_handlers = {}
@@ -132,7 +132,7 @@ class UploadHandler(tornado.web.RequestHandler):
                 function_handlers[function_name].destroy()
 
             function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads)
-
+            function_handlers[function_name].tarball_hash = hashlib.sha256(function_tarball).hexdigest()
 
         except Exception as e:
             raise
@@ -160,6 +160,17 @@ class WipeHandler(tornado.web.RequestHandler):
             raise
 
 
+class ListHandler(tornado.web.RequestHandler):
+    async def get(self):
+        try:
+            out = []
+            for f in function_handlers:
+                out.append({"name": function_handlers[f].name, "hash": function_handlers[f].tarball_hash, "threads": function_handlers[f].thread_count})
+            self.write(json.dumps(out) + '\n')
+        except Exception as e:
+            raise
+
+
 def main(args):
     # read config data
     # exactly one argument should be provided: meta_container
@@ -180,6 +191,7 @@ def main(args):
     app = tornado.web.Application([
         (r'/upload', UploadHandler),
         (r'/delete', DeleteHandler),
+        (r'/list', ListHandler),
         (r'/wipe', WipeHandler)
     ])
     app.listen(CONFIG_PORT)
