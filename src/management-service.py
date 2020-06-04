@@ -150,6 +150,14 @@ class DeleteHandler(tornado.web.RequestHandler):
         except Exception as e:
             raise
 
+class WipeHandler(tornado.web.RequestHandler):
+    async def post(self):
+        try:
+            for f in function_handlers:
+                function_handlers[f].destroy()
+            function_handlers.clear()
+        except Exception as e:
+            raise
 
 
 def main(args):
@@ -171,7 +179,8 @@ def main(args):
     # accept incoming configuration requests and create handlers based on that
     app = tornado.web.Application([
         (r'/upload', UploadHandler),
-        (r'/delete', DeleteHandler)
+        (r'/delete', DeleteHandler),
+        (r'/wipe', WipeHandler)
     ])
     app.listen(CONFIG_PORT)
     tornado.ioloop.IOLoop.current().start()
