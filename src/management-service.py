@@ -165,7 +165,10 @@ class ListHandler(tornado.web.RequestHandler):
         try:
             out = []
             for f in function_handlers:
-                out.append({"name": function_handlers[f].name, "hash": function_handlers[f].tarball_hash, "threads": function_handlers[f].thread_count})
+                out.append({"name": function_handlers[f].name[:-len("-handler")], 
+                "hash": function_handlers[f].tarball_hash, 
+                "threads": function_handlers[f].thread_count,
+                "resource": function_handlers[f].function_resource})
             self.write(json.dumps(out) + '\n')
         except Exception as e:
             raise
