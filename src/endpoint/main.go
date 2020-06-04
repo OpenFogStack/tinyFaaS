@@ -65,7 +65,7 @@ func main() {
 			handler := ""
 			for path := range functions {
 
-				if strings.HasPrefix(req.URL.Path, "/"+path) {
+				if strings.HasPrefix(req.URL.Path, "/"+path) && len(handler) <= len(path) {
 					handler = path
 				}
 			}
