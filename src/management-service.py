@@ -28,7 +28,7 @@ def create_endpoint(meta_container):
     endpoint_network.connect(meta_container)
 
 class FunctionHandler():
-    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads):
+    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads, environment):
         self.client = docker.from_env()
         self.function_resource = function_resource
         self.name = function_name
@@ -66,7 +66,7 @@ class FunctionHandler():
         self.this_containers = list([None]*self.thread_count)
 
         for i in range(0, self.thread_count):
-            self.this_containers[i] = self.client.containers.run(self.this_image, network=self.this_network.name, detach=True)
+            self.this_containers[i] = self.client.containers.run(self.this_image, environment=environment, network=self.this_network.name, detach=True)
             # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
             self.this_handler_ips[i] = docker.APIClient().inspect_network(self.this_network.id)['Containers'][self.this_containers[i].id]['IPv4Address'][:-3]
 
@@ -110,6 +110,7 @@ class UploadHandler(tornado.web.RequestHandler):
             #
 
             function_data = tornado.escape.json_decode(self.request.body)
+            environment = function_data['environment']
             function_threads = function_data['threads']
             function_resource = function_data['resource']
             shutil.rmtree('./tmp', ignore_errors=True)
@@ -131,7 +132,8 @@ class UploadHandler(tornado.web.RequestHandler):
             if function_name in function_handlers:
                 function_handlers[function_name].destroy()
 
-            function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads)
+            function_handlers[function_name] = FunctionHandler(function_name, function_resource, 
+            function_path, function_entry, function_threads, environment)
             function_handlers[function_name].tarball_hash = hashlib.sha256(function_tarball).hexdigest()
 
         except Exception as e:
@@ -188,7 +190,7 @@ def main(args):
       raise ValueError('Provided container name does not match a running container')
 
     # create endpoint
-    endpoint_container = create_endpoint(meta_container)
+    create_endpoint(meta_container)
 
     # accept incoming configuration requests and create handlers based on that
     app = tornado.web.Application([
