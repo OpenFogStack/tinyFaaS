@@ -1,6 +1,6 @@
 'use strict';
 
-const handler = require('%%%PACKAGENAME%%%');
+const handler = require('fn')
 const http = require('http');
 
 const server = http.createServer((req, res) => {

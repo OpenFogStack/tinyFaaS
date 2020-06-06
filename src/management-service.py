@@ -103,7 +103,8 @@ class UploadHandler(tornado.web.RequestHandler):
         try:
             # expected post body
             # {
-            #     resource: "/path/to/call",
+            #     name: "name"
+            #     environment: {}
             #     threads: 2,
             #     tarball: "base64-tarball"
             # }
@@ -112,7 +113,10 @@ class UploadHandler(tornado.web.RequestHandler):
             function_data = tornado.escape.json_decode(self.request.body)
             environment = function_data['environment']
             function_threads = function_data['threads']
-            function_resource = function_data['resource']
+            function_name = function_data['name'] + '-handler'
+            function_path = function_data['name']
+
+            function_resource = "/" + function_data['name']
             shutil.rmtree('./tmp', ignore_errors=True)
             function_tarball = function_data['tarball']   
             function_tarball = base64.b64decode(function_tarball)
@@ -123,9 +127,6 @@ class UploadHandler(tornado.web.RequestHandler):
             tar.extractall(path='./tmp')
 
             package_json = tornado.escape.json_decode(open('./tmp/package.json').read())
-
-            function_name = package_json['name'] + '-handler'
-            function_path = package_json['name']
             function_entry = package_json['main']
  
 
