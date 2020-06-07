@@ -1,7 +1,7 @@
 import asyncio
 import tornado.ioloop
 import tornado.web
-import tarfile, io
+import zipfile, io
 import base64
 import docker
 import json
@@ -106,7 +106,7 @@ class UploadHandler(tornado.web.RequestHandler):
             #     name: "name"
             #     environment: {}
             #     threads: 2,
-            #     tarball: "base64-tarball"
+            #     zip: "base64-zip"
             # }
             #
 
@@ -118,13 +118,13 @@ class UploadHandler(tornado.web.RequestHandler):
 
             function_resource = "/" + function_data['name']
             shutil.rmtree('./tmp', ignore_errors=True)
-            function_tarball = function_data['tarball']   
-            function_tarball = base64.b64decode(function_tarball)
+            function_zip = function_data['zip']   
+            function_zip = base64.b64decode(function_zip)
 
-            function_tarball_file = io.BytesIO(function_tarball)
+            function_zip_file = io.BytesIO(function_zip)
 
-            tar = tarfile.open(fileobj=function_tarball_file)
-            tar.extractall(path='./tmp')
+            zip = zipfile.ZipFile(function_zip_file)
+            zip.extractall(path='./tmp')
 
             package_json = tornado.escape.json_decode(open('./tmp/package.json').read())
             function_entry = package_json['main']
@@ -135,7 +135,7 @@ class UploadHandler(tornado.web.RequestHandler):
 
             function_handlers[function_name] = FunctionHandler(function_name, function_resource, 
             function_path, function_entry, function_threads, environment)
-            function_handlers[function_name].tarball_hash = hashlib.sha256(function_tarball).hexdigest()
+            function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
 
         except Exception as e:
             raise
@@ -169,7 +169,7 @@ class ListHandler(tornado.web.RequestHandler):
             out = []
             for f in function_handlers:
                 out.append({"name": function_handlers[f].name[:-len("-handler")], 
-                "hash": function_handlers[f].tarball_hash, 
+                "hash": function_handlers[f].zip_hash, 
                 "threads": function_handlers[f].thread_count,
                 "resource": function_handlers[f].function_resource})
             self.write(json.dumps(out) + '\n')
