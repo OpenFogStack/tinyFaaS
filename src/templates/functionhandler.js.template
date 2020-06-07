@@ -1,9 +1,11 @@
 'use strict';
-const handler = require('fn')
+process.chdir("%%%PACKAGENAME%%%");
 
+const handler = require('fn')
 const express = require('express')
 const app = express()
 const port = 8000
 
-app.all('/', handler)
+
+app.all('/*', handler.tinyfaasHandler);
 app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))
