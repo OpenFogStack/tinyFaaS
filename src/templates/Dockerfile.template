@@ -1,5 +1,5 @@
 #https://nodejs.org/en/docs/guides/nodejs-docker-webapp/
-FROM node:8
+FROM node:10
 
 EXPOSE 8000
 
@@ -7,6 +7,7 @@ EXPOSE 8000
 WORKDIR /usr/src/app
 
 COPY . .
+RUN npm install express
 RUN npm install ./%%%HANDLERPATH%%%
 
 # Install app dependencies

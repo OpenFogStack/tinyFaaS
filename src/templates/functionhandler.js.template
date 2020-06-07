@@ -1,9 +1,9 @@
 'use strict';
-
 const handler = require('fn')
-const http = require('http');
 
-const server = http.createServer((req, res) => {
-  handler.eventhandler(req, res);
-});
-server.listen(8000);
+const express = require('express')
+const app = express()
+const port = 8000
+
+app.all('/', handler)
+app.listen(port, () => console.log(`Example app listening at http://localhost:${port}`))

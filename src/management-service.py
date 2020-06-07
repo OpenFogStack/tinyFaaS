@@ -112,6 +112,7 @@ class UploadHandler(tornado.web.RequestHandler):
 
             function_data = tornado.escape.json_decode(self.request.body)
             environment = function_data['environment']
+            environment["TINYFAAS"] = "true"
             function_threads = function_data['threads']
             function_name = function_data['name'] + '-handler'
             function_path = function_data['name']
