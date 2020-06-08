@@ -177,6 +177,16 @@ class ListHandler(tornado.web.RequestHandler):
         except Exception as e:
             raise
 
+class LogsHandler(tornado.web.RequestHandler):
+    async def get(self):
+        try:
+            for f in function_handlers:
+                handler = function_handlers[f]
+                for cont in handler.this_containers:
+                    self.write(cont.logs())
+        except Exception as e:
+            raise
+
 
 def main(args):
     # read config data
@@ -199,7 +209,8 @@ def main(args):
         (r'/upload', UploadHandler),
         (r'/delete', DeleteHandler),
         (r'/list', ListHandler),
-        (r'/wipe', WipeHandler)
+        (r'/wipe', WipeHandler),
+        (r'/logs', LogsHandler)
     ])
     app.listen(CONFIG_PORT)
     tornado.ioloop.IOLoop.current().start()
