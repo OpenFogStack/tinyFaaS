@@ -1,5 +1,5 @@
 'use strict';
-process.chdir("%%%PACKAGENAME%%%");
+process.chdir("fn");
 
 const handler = require('fn')
 const express = require('express')

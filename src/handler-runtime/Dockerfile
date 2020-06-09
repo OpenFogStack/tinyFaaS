@@ -5,10 +5,11 @@ EXPOSE 8000
 
 # Create app directory
 WORKDIR /usr/src/app
+RUN npm cache add express
 
 COPY . .
 RUN npm install express
-RUN npm install ./%%%HANDLERPATH%%%
+RUN npm install ./fn
 
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied

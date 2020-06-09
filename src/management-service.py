@@ -32,26 +32,16 @@ class FunctionHandler():
         self.client = docker.from_env()
         self.function_resource = function_resource
         self.name = function_name
+        shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
+        shutil.copytree('./tmp', './handler-runtime/fn')
 
         # copy all files in ./templates/functionhandler to handler-runtime/[function_path]
-        shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
+#        shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
 
         # copy the folder ./handlers/[function_path] to handler-runtime/[function_path]
-        shutil.copytree('./tmp', './handler-runtime/' + self.name + '/' + function_path)
+#        shutil.copytree('./tmp', './handler-runtime/' + self.name + '/' + function_path)
 
-        # use the Dockerfile.template to create a custom Dockerfile with function_path
-        with open('./templates/Dockerfile.template', 'rt') as fin:
-            with open('./handler-runtime/' + self.name + '/Dockerfile', 'wt') as fout:
-                for line in fin:
-                    fout.write(line.replace('%%%HANDLERPATH%%%', function_path))
-
-        # use the functionhandler.js.template to create a custom functionhandler.js with function_path as a module name
-        with open('./templates/functionhandler.js.template', 'rt') as fin:
-            with open('./handler-runtime/' + self.name + '/functionhandler.js', 'wt') as fout:
-                for line in fin:
-                    fout.write(line.replace('%%%PACKAGENAME%%%', function_path))
-
-        self.this_image = self.client.images.build(path='./handler-runtime/' + self.name, rm=True)[0]
+        self.this_image = self.client.images.build(path='./handler-runtime', rm=True)[0]
 
         self.thread_count = function_threads
 
@@ -95,7 +85,6 @@ class FunctionHandler():
             self.this_network.disconnect(container, force=True)
         self.this_network.remove()
 
-        shutil.rmtree('./handler-runtime/' + self.name)
         
 
 class UploadHandler(tornado.web.RequestHandler):
