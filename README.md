@@ -6,17 +6,18 @@ If you use this software in a publication, please cite it as:
 
 ### Text
 
-Tobias Pfandzelter, David Bermbach. **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**. In: Proceedings of the 2nd IEEE International Conference on Fog Computing 2020 (ICFC 2020). IEEE 2020.
+T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**, 2020 IEEE International Conference on Fog Computing (ICFC), Sydney, Australia, 2020, pp. 17-24, doi: 10.1109/ICFC49376.2020.00011.
 
 ### BibTeX
 
 ```
 @inproceedings{pfandzelter_tinyfaas:_2020,
 	title = {tinyFaaS: A Lightweight FaaS Platform for Edge Environments},
-	booktitle = {Proceedings of the Second {IEEE} {International} {Conference} on {Fog} {Computing} 2020 (ICFC 2020)},
+	booktitle = {2020 IEEE International Conference on Fog Computing (ICFC)},
 	author = {Pfandzelter, Tobias and Bermbach, David},
 	year = {2020},
-	publisher = {IEEE}
+	publisher = {IEEE},
+	pages = 17--24
 }
 ```
 
