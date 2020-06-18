@@ -29,7 +29,7 @@ The code in this repository is licensed under the terms of the [MIT](./LICENSE) 
 
 ## Instructions
 
-To start this tinyFaaS implementation, simply build and start the management service in a Docker container. It will then create the gateway in a separate container.
+To start this tinyFaaS implementation, simply build and start the management service in a Docker container. It will then create the reverse-proxy in a separate container.
 
 To build the management service container, run:
 `docker build -t tinyfaas-mgmt .`

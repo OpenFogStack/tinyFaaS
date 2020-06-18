@@ -15,7 +15,7 @@ function_handlers = {}
 
 def create_endpoint(meta_container):
     client = docker.from_env()
-    endpoint_image = client.images.build(path='./endpoint/', rm=True)[0]
+    endpoint_image = client.images.build(path='./reverse-proxy/', rm=True)[0]
 
     endpoint_network = client.networks.create('endpoint-net', driver='bridge')
 
@@ -119,7 +119,7 @@ def main(args):
       raise ValueError('Provided container name does not match a running container')
 
     # create endpoint
-    endpoint_container = create_endpoint(meta_container)
+    create_endpoint(meta_container)
 
     # accept incoming configuration requests and create handlers based on that
     app = tornado.web.Application([
