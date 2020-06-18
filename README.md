@@ -29,6 +29,8 @@ The code in this repository is licensed under the terms of the [MIT](./LICENSE) 
 
 ## Instructions
 
+To use tinyFaaS in the version used in the paper mentioned above, use `git checkout v0.1`.
+
 To start this tinyFaaS implementation, simply build and start the management service in a Docker container. It will then create the reverse-proxy in a separate container.
 
 To build the management service container, run:
