@@ -1,5 +1,5 @@
 #https://nodejs.org/en/docs/guides/nodejs-docker-webapp/
-FROM node:8
+FROM node:8-alpine
 
 EXPOSE 8000
 
@@ -8,9 +8,5 @@ WORKDIR /usr/src/app
 
 COPY . .
 RUN npm install ./%%%HANDLERPATH%%%
-
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
 
 CMD [ "node", "functionhandler.js" ]
