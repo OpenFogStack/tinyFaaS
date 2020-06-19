@@ -31,15 +31,39 @@ The code in this repository is licensed under the terms of the [MIT](./LICENSE) 
 
 To use tinyFaaS in the version used in the paper mentioned above, use `git checkout v0.1`.
 
-To start this tinyFaaS implementation, simply build and start the management service in a Docker container. It will then create the reverse-proxy in a separate container.
+To start this tinyFaaS implementation, simply build and start the management service in a Docker container.
+It will then create the reverse-proxy in a separate container.
+
+On constrained devices, you may run into issues when pulling the required Docker images for the first time.
+Use these commands to pull these on a new installation (they will be cached for subsequent use):
+
+```bash
+docker pull python:3-alpine
+docker pull golang:alpine
+docker pull node:8-alpine
+```
 
 To build the management service container, run:
-`docker build -t tinyfaas-mgmt .`
+
+```bash
+cd src
+docker build -t tinyfaas-mgmt .
+```
 
 Then start the container with:
-`docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt`
+
+```bash
+docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
+```
 
 This ensures that the management service has access to Docker on the host and it will then expose port 8080 to accept incoming request.
+When starting the management service, it will first build and deploy the reverse proxy as a second Docker container.
+Depending on the performance of your host, this can take between a few seconds and up to a minute (on a Raspberry Pi 3B+).
 
 To deploy a function (e.g. the "Sieve of Erasthostenes"), run:
-`curl http://localhost:8080 --data '{"path": "sieve-of-erasthostenes", "resource": "/sieve/primes", "entry": "sieve.js", "threads": 4}' -v`
+
+```bash
+curl http://localhost:8080 --data '{"path": "sieve-of-erasthostenes", "resource": "/sieve/primes", "entry": "sieve.js", "threads": 4}' -v
+```
+
+The reverse proxy will then expose this service on port 5683 (default CoAP port) as `coap://localhost:5683/sieve/primes`.
