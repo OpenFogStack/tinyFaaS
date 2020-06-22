@@ -50,20 +50,32 @@ cd src
 docker build -t tinyfaas-mgmt .
 ```
 
-Then start the container with:
+Then start the management service container with:
 
 ```bash
-docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
+docker run -v /var/run/docker.sock:/var/run/docker.sock -p 5000:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
 ```
 
-This ensures that the management service has access to Docker on the host and it will then expose port 8080 to accept incoming request.
+This ensures that the management service has access to Docker on the host and it will then expose port 5000 to accept incoming request.
 When starting the management service, it will first build and deploy the reverse proxy as a second Docker container.
 Depending on the performance of your host, this can take between a few seconds and up to a minute (on a Raspberry Pi 3B+).
 
 To deploy a function (e.g. the "Sieve of Erasthostenes"), run:
 
 ```bash
-curl http://localhost:8080 --data '{"path": "sieve-of-erasthostenes", "resource": "/sieve/primes", "entry": "sieve.js", "threads": 4}' -v
+curl http://localhost:5000 --data '{"path": "sieve-of-erasthostenes", "resource": "/sieve/primes", "entry": "sieve.js", "threads": 4}' -v
 ```
 
 The reverse proxy will then expose this service on port 5683 (default CoAP port) as `coap://localhost:5683/sieve/primes`.
+To change the default port, use the additional port parameter when running the tinyFaaS management service (e.g., to change the endpoint port to 7000):
+
+```bash
+docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt 7000
+```
+
+To stop and remove all containers on your system (including, **but not limited to**, containers managed by tinyFaaS), use:
+
+```bash
+docker stop $(docker ps -a -q)
+docker rm $(docker ps -a -q)
+```
