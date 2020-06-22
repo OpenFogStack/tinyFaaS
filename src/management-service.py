@@ -17,6 +17,10 @@ def create_endpoint(meta_container, port):
     client = docker.from_env()
     endpoint_image = client.images.build(path='./reverse-proxy/', rm=True)[0]
 
+    # remove old endpoint-net networks
+    for n in client.networks.list(names=['endpoint-net']):
+        n.remove()
+    
     endpoint_network = client.networks.create('endpoint-net', driver='bridge')
 
     endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/udp': port}, detach=True)
