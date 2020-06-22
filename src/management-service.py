@@ -13,13 +13,17 @@ CONFIG_PORT = 8080
 endpoint_container = {}
 function_handlers = {}
 
-def create_endpoint(meta_container):
+def create_endpoint(meta_container, port):
     client = docker.from_env()
     endpoint_image = client.images.build(path='./reverse-proxy/', rm=True)[0]
 
+    # remove old endpoint-net networks
+    for n in client.networks.list(names=['endpoint-net']):
+        n.remove()
+    
     endpoint_network = client.networks.create('endpoint-net', driver='bridge')
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/udp': 5683}, detach=True)
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/udp': port}, detach=True)
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
@@ -106,20 +110,27 @@ class EndpointHandler(tornado.web.RequestHandler):
             raise
 
 def main(args):
-    # read config data
-    # exactly one argument should be provided: meta_container
-    if len(args) != 2:
-        raise ValueError('Too many or too little arguments provided:\n' + json.dumps(args))
+    
+    # default coap port is 5683
+    port = 5683
+
+    if len(args) == 3:
+        try:
+            port = int(args[2])
+        except ValueError:
+                    raise ValueError('Could not parse port number:\n' + json.dumps(args) + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')
+    elif len(args) != 2:
+        raise ValueError('Too many or too little arguments provided:\n' + json.dumps(args) + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')
 
     meta_container = args[1]
 
     try:
       docker.from_env().containers.get(meta_container)
     except:
-      raise ValueError('Provided container name does not match a running container')
+      raise ValueError('Provided container name does not match a running container' + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')
 
     # create endpoint
-    create_endpoint(meta_container)
+    create_endpoint(meta_container, port)
 
     # accept incoming configuration requests and create handlers based on that
     app = tornado.web.Application([
