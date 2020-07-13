@@ -11,6 +11,11 @@ To shut down tinyFaaS just run `./scripts/cleanup.sh`
 To get an overview of deployed functions run `./scripts/list.sh`  
 To fetch logs run `./scripts/logs.sh`
 
+## Ports
+
+* tcp 8080: management system, anyone who can access this can deploy arbitrary docker containers on your host system
+* tcp 5683: http server, this is where your functions will be 
+
 ## Changes of this fork
 
 * uploading functions on runtime
