@@ -1,5 +1,5 @@
 #https://nodejs.org/en/docs/guides/nodejs-docker-webapp/
-FROM node:10
+FROM node:10-alpine
 
 EXPOSE 8000
 
@@ -10,9 +10,5 @@ RUN npm cache add express
 COPY . .
 RUN npm install express
 RUN npm install ./fn
-
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
 
 CMD [ "node", "functionhandler.js" ]
