@@ -23,11 +23,18 @@ T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge
 
 For a full list of publications, please see [our website](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/).
 
-## License
+### License
 
 The code in this repository is licensed under the terms of the [MIT](./LICENSE) license.
 
+### Ports
+
+* tcp 8080: management system, anyone who can access this can deploy arbitrary docker containers on your host system
+* tcp 5683: http server, this is where your functions will be
+
 ## Instructions
+
+Please note that this will use your computers docker instance to manage containers and will allow anyone in your network to start docker-containers with arbitrary code. If you don't know what this means you do _not_ want to run this on your computer.
 
 To use tinyFaaS in the version used in the paper mentioned above, use `git checkout v0.1`.
 
@@ -40,42 +47,10 @@ Use these commands to pull these on a new installation (they will be cached for 
 ```bash
 docker pull python:3-alpine
 docker pull golang:alpine
-docker pull node:8-alpine
+docker pull node:10-alpine
 ```
 
-To build the management service container, run:
-
-```bash
-cd src
-docker build -t tinyfaas-mgmt .
-```
-
-Then start the management service container with:
-
-```bash
-docker run -v /var/run/docker.sock:/var/run/docker.sock -p 5000:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
-```
-
-This ensures that the management service has access to Docker on the host and it will then expose port 5000 to accept incoming request.
-When starting the management service, it will first build and deploy the reverse proxy as a second Docker container.
-Depending on the performance of your host, this can take between a few seconds and up to a minute (on a Raspberry Pi 3B+).
-
-To deploy a function (e.g. the "Sieve of Erasthostenes"), run:
-
-```bash
-curl http://localhost:5000 --data '{"path": "sieve-of-erasthostenes", "resource": "/sieve/primes", "entry": "sieve.js", "threads": 4}' -v
-```
-
-The reverse proxy will then expose this service on port 5683 (default CoAP port) as `coap://localhost:5683/sieve/primes`.
-To change the default port, use the additional port parameter when running the tinyFaaS management service (e.g., to change the endpoint port to 7000):
-
-```bash
-docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt 7000
-```
-
-To stop and remove all containers on your system (including, **but not limited to**, containers managed by tinyFaaS), use:
-
-```bash
-docker stop $(docker ps -a -q)
-docker rm $(docker ps -a -q)
-```
+`cd` to the src directory and run `./scripts/start.sh`, after that a tinyFaaS instance will run on your host.  
+To shut down tinyFaaS just run `./scripts/cleanup.sh`  
+To get an overview of deployed functions run `./scripts/list.sh`  
+To fetch logs run `./scripts/logs.sh`

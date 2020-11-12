@@ -1,14 +1,16 @@
 import asyncio
 import tornado.ioloop
 import tornado.web
-
+import zipfile, io
+import base64
 import docker
 import json
 import uuid
 import shutil
 import urllib
 import sys
-
+import shutil
+import hashlib
 CONFIG_PORT = 8080
 endpoint_container = {}
 function_handlers = {}
@@ -23,37 +25,27 @@ def create_endpoint(meta_container, port):
     
     endpoint_network = client.networks.create('endpoint-net', driver='bridge')
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/udp': port}, detach=True)
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'5683/tcp': port}, detach=True)
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
     endpoint_network.connect(meta_container)
 
 class FunctionHandler():
-    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads):
+    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads, environment):
         self.client = docker.from_env()
         self.function_resource = function_resource
         self.name = function_name
+        shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
+        shutil.copytree('./tmp', './handler-runtime/fn')
 
         # copy all files in ./templates/functionhandler to handler-runtime/[function_path]
-        shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
+#        shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
 
         # copy the folder ./handlers/[function_path] to handler-runtime/[function_path]
-        shutil.copytree('./handlers/' + function_path, './handler-runtime/' + self.name + '/' + function_path)
+#        shutil.copytree('./tmp', './handler-runtime/' + self.name + '/' + function_path)
 
-        # use the Dockerfile.template to create a custom Dockerfile with function_path
-        with open('./templates/Dockerfile.template', 'rt') as fin:
-            with open('./handler-runtime/' + self.name + '/Dockerfile', 'wt') as fout:
-                for line in fin:
-                    fout.write(line.replace('%%%HANDLERPATH%%%', function_path))
-
-        # use the functionhandler.js.template to create a custom functionhandler.js with function_path as a module name
-        with open('./templates/functionhandler.js.template', 'rt') as fin:
-            with open('./handler-runtime/' + self.name + '/functionhandler.js', 'wt') as fout:
-                for line in fin:
-                    fout.write(line.replace('%%%PACKAGENAME%%%', function_path))
-
-        self.this_image = self.client.images.build(path='./handler-runtime/' + self.name, rm=True)[0]
+        self.this_image = self.client.images.build(path='./handler-runtime', rm=True)[0]
 
         self.thread_count = function_threads
 
@@ -68,7 +60,7 @@ class FunctionHandler():
         self.this_containers = list([None]*self.thread_count)
 
         for i in range(0, self.thread_count):
-            self.this_containers[i] = self.client.containers.run(self.this_image, network=self.this_network.name, detach=True)
+            self.this_containers[i] = self.client.containers.run(self.this_image, environment=environment, network=self.this_network.name, detach=True)
             # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
             self.this_handler_ips[i] = docker.APIClient().inspect_network(self.this_network.id)['Containers'][self.this_containers[i].id]['IPv4Address'][:-3]
 
@@ -81,33 +73,113 @@ class FunctionHandler():
         data = json.dumps(function_handler).encode('ascii')
 
         urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
+    def destroy(self):
+        function_handler = {
+            "function_resource": self.function_resource,
+            "function_containers": []
+        }
+        data = json.dumps(function_handler).encode('ascii')
+        urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
 
-class EndpointHandler(tornado.web.RequestHandler):
+
+        for container in self.this_containers:
+            container.remove(force=True)
+        self.this_network.reload()
+        for container in self.this_network.containers:
+            self.this_network.disconnect(container, force=True)
+        self.this_network.remove()
+
+        
+
+class UploadHandler(tornado.web.RequestHandler):
     async def post(self):
         try:
             # expected post body
             # {
-            #     path: 'handler-path',
-            #     resource: 'han/dler',
-            #     entry: 'handler.js',
-            #     threads: 2
+            #     name: "name"
+            #     environment: {}
+            #     threads: 2,
+            #     zip: "base64-zip"
             # }
             #
 
             function_data = tornado.escape.json_decode(self.request.body)
-
-            function_path = function_data['path']
-            function_resource = function_data['resource']
-            function_entry = function_data['entry']
+            environment = function_data['environment']
+            environment["TINYFAAS"] = "true"
             function_threads = function_data['threads']
+            function_name = function_data['name'] + '-handler'
+            function_path = function_data['name']
 
-            function_name = str(uuid.uuid4()) + '-' + function_path + '-handler'
+            function_resource = "/" + function_data['name']
+            shutil.rmtree('./tmp', ignore_errors=True)
+            function_zip = function_data['zip']   
+            function_zip = base64.b64decode(function_zip)
 
-            function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads)
+            function_zip_file = io.BytesIO(function_zip)
 
+            zip = zipfile.ZipFile(function_zip_file)
+            zip.extractall(path='./tmp')
+
+            package_json = tornado.escape.json_decode(open('./tmp/package.json').read())
+            function_entry = package_json['main']
+ 
+
+            if function_name in function_handlers:
+                function_handlers[function_name].destroy()
+
+            function_handlers[function_name] = FunctionHandler(function_name, function_resource, 
+            function_path, function_entry, function_threads, environment)
+            function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
 
         except Exception as e:
             raise
+class DeleteHandler(tornado.web.RequestHandler):
+    async def post(self):
+        try:
+            handler_name = self.request.body.decode("utf-8") + '-handler'
+            # expected json {name: "function-name-from-pkg-json"}
+            if handler_name in function_handlers:
+                function_handlers[handler_name].destroy()
+                del function_handlers[handler_name]
+            else:
+                self.write("Not found")
+
+        except Exception as e:
+            raise
+
+class WipeHandler(tornado.web.RequestHandler):
+    async def post(self):
+        try:
+            for f in function_handlers:
+                function_handlers[f].destroy()
+            function_handlers.clear()
+        except Exception as e:
+            raise
+
+
+class ListHandler(tornado.web.RequestHandler):
+    async def get(self):
+        try:
+            out = []
+            for f in function_handlers:
+                out.append({"name": function_handlers[f].name[:-len("-handler")], 
+                "hash": function_handlers[f].zip_hash, 
+                "threads": function_handlers[f].thread_count,
+                "resource": function_handlers[f].function_resource})
+            self.write(json.dumps(out) + '\n')
+        except Exception as e:
+            raise
+
+class LogsHandler(tornado.web.RequestHandler):
+    async def get(self):
+        try:
+            for f in function_handlers:
+                handler = function_handlers[f]
+                for cont in handler.this_containers:
+                    self.write(cont.logs())
+        except Exception as e:
+            raise
+
 
 def main(args):
     
@@ -134,7 +206,11 @@ def main(args):
 
     # accept incoming configuration requests and create handlers based on that
     app = tornado.web.Application([
-        (r'/', EndpointHandler),
+        (r'/upload', UploadHandler),
+        (r'/delete', DeleteHandler),
+        (r'/list', ListHandler),
+        (r'/wipe', WipeHandler),
+        (r'/logs', LogsHandler)
     ])
     app.listen(CONFIG_PORT)
     tornado.ioloop.IOLoop.current().start()
