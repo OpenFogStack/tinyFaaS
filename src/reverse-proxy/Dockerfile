@@ -11,8 +11,9 @@ RUN CGO_ENABLED=0 go install -v ./...
 FROM scratch
 
 EXPOSE 80/tcp
-EXPOSE 5683/udp
+EXPOSE 5683/tcp
 
 COPY --from=golang /go/bin/app app
 
 ENTRYPOINT [ "./app" ]
+
