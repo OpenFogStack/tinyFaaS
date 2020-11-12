@@ -15,7 +15,7 @@ module.exports = (req, res) => {
 
 
   res.send(JSON.stringify({
-    response_code: "2.05",
+    response_code: "200",
     payload: primes.toString()
   }) + "\n");
 
