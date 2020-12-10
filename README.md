@@ -10,14 +10,14 @@ T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge
 
 ### BibTeX
 
-```
+```bibtex
 @inproceedings{pfandzelter_tinyfaas:_2020,
-	title = {tinyFaaS: A Lightweight FaaS Platform for Edge Environments},
-	booktitle = {2020 IEEE International Conference on Fog Computing (ICFC)},
-	author = {Pfandzelter, Tobias and Bermbach, David},
-	year = {2020},
-	publisher = {IEEE},
-	pages = 17--24
+    title = {tinyFaaS: A Lightweight FaaS Platform for Edge Environments},
+    booktitle = {2020 IEEE International Conference on Fog Computing (ICFC)},
+    author = {Pfandzelter, Tobias and Bermbach, David},
+    year = {2020},
+    publisher = {IEEE},
+    pages = 17--24
 }
 ```
 
@@ -29,8 +29,10 @@ The code in this repository is licensed under the terms of the [MIT](./LICENSE) 
 
 ### Ports
 
-* tcp 8080: management system, anyone who can access this can deploy arbitrary docker containers on your host system
-* tcp 5683: http server, this is where your functions will be
+- tcp 8080: management system, anyone who can access this can deploy arbitrary docker containers on your host system
+- udp 5683: coap server, this is where your functions will be if accessed via the coap endpoint
+- tcp 80: http server, this is where your functions will be if accessed via the http endpoint
+- tcp 8080: grpc server, this is where your functions will be if accessed via the grpc endpoint
 
 ## Instructions
 
