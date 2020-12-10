@@ -7,4 +7,3 @@ done
 
 docker network rm $(docker network ls -q --filter name=endpoint-net) 2>/dev/null
 docker network rm $(docker network ls -q --filter name=handler-net) 2>/dev/null
-
