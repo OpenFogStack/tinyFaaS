@@ -20,7 +20,7 @@ func main() {
 	// CoAP
 	go startCoAPServer(&f)
 	// HTTP
-	go startCoAPServer(&f)
+	go startHTTPServer(&f)
 	// GRPC
 	go startGRPCServer(&f)
 
@@ -28,9 +28,10 @@ func main() {
 
 	server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
-
+			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(r.Body)
 		newStr := buf.String()
@@ -40,9 +41,10 @@ func main() {
 			FunctionContainers []string `json:"function_containers"`
 		}
 
-		err := json.Unmarshal([]byte(newStr), &f)
+		err := json.Unmarshal([]byte(newStr), &def)
 
 		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -60,6 +62,8 @@ func main() {
 				delete(f.hosts, def.FunctionResource)
 			}
 		}
+
+		w.WriteHeader(http.StatusOK)
 
 	})
 

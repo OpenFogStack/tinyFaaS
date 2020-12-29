@@ -6,20 +6,27 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/dustin/go-coap"
+	"github.com/pfandzelter/go-coap"
 )
 
 func startCoAPServer(f *functions) {
 
 	mux := coap.NewServeMux()
 
-	mux.Handle("/functions", coap.FuncHandler(
+	mux.Handle("/", coap.FuncHandler(
 		func(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 
 			if m.IsConfirmable() {
 				f.RLock()
 				defer f.RUnlock()
-				handler, ok := f.hosts[m.PathString()]
+
+				p := m.PathString()
+
+				for p != "" && p[0] == '/' {
+					p = p[1:]
+				}
+
+				handler, ok := f.hosts[p]
 
 				if ok {
 					// call function and return results

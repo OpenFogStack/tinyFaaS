@@ -1,13 +1,12 @@
 FROM python:3-alpine
 
 WORKDIR /usr/src/app
-
-COPY . .
+EXPOSE 8080
 
 RUN pip install --no-cache-dir tornado
 RUN pip install --no-cache-dir docker
 
-EXPOSE 8080
+COPY . .
 
 ENTRYPOINT [ "python", "./management-service.py" ]
 CMD []

@@ -11,12 +11,9 @@ module.exports = (req, res) => {
       }
     }
   }
+  
   console.log("Found primes: " + primes.toString());
 
-
-  res.send(JSON.stringify({
-    response_code: "200",
-    payload: primes.toString()
-  }) + "\n");
+  res.send(primes.toString() + "\n");
 
 }
