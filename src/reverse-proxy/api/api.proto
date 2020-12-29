@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package mcc.tinyfaas.api;
+option go_package = ".;api";
+
+// Represents a trigger node
+service TinyFaaS { rpc Request(Data) returns(Response); }
+
+message Data {
+  string functionIdentifier = 1;
+  string data = 2;
+}
+
+message Response { string response = 1; }
