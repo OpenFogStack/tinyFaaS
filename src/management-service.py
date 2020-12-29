@@ -11,6 +11,8 @@ import urllib
 import sys
 import shutil
 import hashlib
+import os
+
 CONFIG_PORT = 8080
 endpoint_container = {}
 function_handlers = {}
@@ -25,7 +27,18 @@ def create_endpoint(meta_container, coapPort, httpPort, grpcPort):
     
     endpoint_network = client.networks.create('endpoint-net', driver='bridge')
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports={'6000/udp': coapPort, '7000/tcp': httpPort, '8000/tcp': grpcPort}, detach=True)
+    ports = {}
+    if coapPort > 0:
+        ports['6000/udp'] = coapPort
+    
+    if httpPort > 0:
+        ports['7000/tcp'] = httpPort
+    
+    if grpcPort > 0:
+        ports['8000/tcp'] = grpcPort
+    
+
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, name="tinyfaas-reverse-proxy")
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
@@ -73,6 +86,7 @@ class FunctionHandler():
         data = json.dumps(function_handler).encode('ascii')
 
         urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
+        
     def destroy(self):
         function_handler = {
             "function_resource": self.function_resource,
@@ -127,8 +141,7 @@ class UploadHandler(tornado.web.RequestHandler):
             if function_name in function_handlers:
                 function_handlers[function_name].destroy()
 
-            function_handlers[function_name] = FunctionHandler(function_name, function_resource, 
-            function_path, function_entry, function_threads, environment)
+            function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads, environment)
             function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
 
         except Exception as e:
@@ -184,13 +197,13 @@ class LogsHandler(tornado.web.RequestHandler):
 def main(args):
     
     # default coap port is 5683
-    coapPort = 5683
+    coapPort = int(os.getenv('COAP_PORT', "5683"))
 
     # http port
-    httpPort = 80
+    httpPort = int(os.getenv('HTTP_PORT', "80"))
 
     # grpc port
-    grpcPort = 8000
+    grpcPort = int(os.getenv('GRPC_PORT', "8000"))
 
     if len(args) != 2:
         raise ValueError('Too many or too little arguments provided:\n' + json.dumps(args) + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')

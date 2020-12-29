@@ -1,43 +1,46 @@
 package main
 
 import (
-	"fmt"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
 )
 
 func startHTTPServer(f *functions) {
-	server := http.NewServeMux()
 
-	director := func(req *http.Request) {
-		handler := ""
+	mux := http.NewServeMux()
 
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		f.RLock()
 		defer f.RUnlock()
 
-		for path := range f.hosts {
+		p := r.URL.Path
 
-			if strings.HasPrefix(req.URL.Path, "/"+path) && len(handler) <= len(path) {
-				handler = path
-			}
+		for p != "" && p[0] == '/' {
+			p = p[1:]
 		}
 
-		urls, ok := f.hosts[handler]
+		handler, ok := f.hosts[p]
+
 		if ok {
-			dest, _ := url.Parse("http://" + urls[rand.Intn(len(urls))] + ":8000")
-			req.URL.Host = dest.Host
-			req.URL.Path = strings.Replace(req.URL.Path, "/"+handler, "", 1)
+			// call function and return results
+			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			w.Write(body)
 		}
-		req.URL.Scheme = "http"
-	}
-	proxy := &httputil.ReverseProxy{Director: director}
-	server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		proxy.ServeHTTP(w, r)
 	})
 
-	err := http.ListenAndServe(":7000", server)
-	fmt.Println(err)
+	http.ListenAndServe(":7000", mux)
 }
