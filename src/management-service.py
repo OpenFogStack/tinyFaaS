@@ -12,6 +12,7 @@ import sys
 import shutil
 import hashlib
 import os
+import requests
 
 CONFIG_PORT = 8080
 endpoint_container = {}
@@ -44,13 +45,43 @@ def create_endpoint(meta_container, coapPort, httpPort, grpcPort):
 
     endpoint_network.connect(meta_container)
 
+# upload_handler will take function_data and will manage the upload of a zip to tinyFaas
+# subfolder_path should be formatted like with a leading "/" 
+# like "/<folder_name>/<another_folder"
+# If the zip is not base64 encode you need to set base64_encoded to false 
+def upload_handler(function_data, subfolder_path="", base64_encoded=True):
+    environment = function_data['environment']
+    environment["TINYFAAS"] = "true"
+    function_threads = function_data['threads']
+    function_name = function_data['name'] + '-handler'
+    function_path = function_data['name']
+
+    function_resource = "/" + function_data['name']
+    shutil.rmtree('./tmp', ignore_errors=True)
+    function_zip = function_data['zip']
+    if base64_encoded:
+        function_zip = base64.b64decode(function_zip)
+
+    function_zip_file = io.BytesIO(function_zip)
+    zip = zipfile.ZipFile(function_zip_file)
+    zip.extractall(path='./tmp')
+    print("extracted")
+    package_json = tornado.escape.json_decode(open('./tmp'+subfolder_path+'/package.json').read())
+    function_entry = package_json['main']
+
+    if function_name in function_handlers:
+        function_handlers[function_name].destroy()
+
+    function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads, environment, subfolder_path)
+    function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
+        
 class FunctionHandler():
-    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads, environment):
+    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads, environment, subfolder_path=""):
         self.client = docker.from_env()
         self.function_resource = function_resource
         self.name = function_name
         shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
-        shutil.copytree('./tmp', './handler-runtime/fn')
+        shutil.copytree('./tmp'+subfolder_path, './handler-runtime/fn')
 
         # copy all files in ./templates/functionhandler to handler-runtime/[function_path]
 #        shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
@@ -103,8 +134,6 @@ class FunctionHandler():
             self.this_network.disconnect(container, force=True)
         self.this_network.remove()
 
-        
-
 class UploadHandler(tornado.web.RequestHandler):
     async def post(self):
         try:
@@ -118,34 +147,32 @@ class UploadHandler(tornado.web.RequestHandler):
             #
 
             function_data = tornado.escape.json_decode(self.request.body)
-            environment = function_data['environment']
-            environment["TINYFAAS"] = "true"
-            function_threads = function_data['threads']
-            function_name = function_data['name'] + '-handler'
-            function_path = function_data['name']
-
-            function_resource = "/" + function_data['name']
-            shutil.rmtree('./tmp', ignore_errors=True)
-            function_zip = function_data['zip']   
-            function_zip = base64.b64decode(function_zip)
-
-            function_zip_file = io.BytesIO(function_zip)
-
-            zip = zipfile.ZipFile(function_zip_file)
-            zip.extractall(path='./tmp')
-
-            package_json = tornado.escape.json_decode(open('./tmp/package.json').read())
-            function_entry = package_json['main']
- 
-
-            if function_name in function_handlers:
-                function_handlers[function_name].destroy()
-
-            function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads, environment)
-            function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
+            upload_handler(function_data)
 
         except Exception as e:
             raise
+
+class UploadFromURL(tornado.web.RequestHandler):
+    async def post(self):
+        try:
+            # expected post body
+            # {
+            #     name: "name"
+            #     environment: {}
+            #     threads: 2,
+            #     url: "https://github.com/PaulsBecks/binance-trading-pair-price-faas/archive/main.zip",
+            #     base64_encoded: false
+            #     subfolder_path: "/your/path"
+            # }
+            #
+            function_data = tornado.escape.json_decode(self.request.body)
+            url = function_data["url"]
+            r = requests.get(url, allow_redirects=True)
+            function_data["zip"] = r.content
+            upload_handler(function_data, subfolder_path=function_data["subfolder_path"], base64_encoded=function_data["base64_encoded"])
+        except Exception as e:
+            raise
+
 class DeleteHandler(tornado.web.RequestHandler):
     async def post(self):
         try:
@@ -224,7 +251,8 @@ def main(args):
         (r'/delete', DeleteHandler),
         (r'/list', ListHandler),
         (r'/wipe', WipeHandler),
-        (r'/logs', LogsHandler)
+        (r'/logs', LogsHandler),
+        (r'/uploadFromUrl', UploadFromURL)
     ])
     app.listen(CONFIG_PORT)
     tornado.ioloop.IOLoop.current().start()
