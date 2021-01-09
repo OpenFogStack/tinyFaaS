@@ -74,7 +74,16 @@ def upload_handler(function_data, subfolder_path="", base64_encoded=True):
 
     function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads, environment, subfolder_path)
     function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
-        
+
+class TinyFaasManagerBaseHandler(tornado.web.RequestHandler):
+    def set_default_headers(self):
+        self.set_header("Access-Control-Allow-Origin", "*")
+        self.set_header("Access-Control-Allow-Headers", "*")
+        self.set_header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
+    
+    def options(self):
+        pass
+
 class FunctionHandler():
     def __init__(self, function_name, function_resource, function_path, function_entry, function_threads, environment, subfolder_path=""):
         self.client = docker.from_env()
@@ -134,7 +143,7 @@ class FunctionHandler():
             self.this_network.disconnect(container, force=True)
         self.this_network.remove()
 
-class UploadHandler(tornado.web.RequestHandler):
+class UploadHandler(TinyFaasManagerBaseHandler):
     async def post(self):
         try:
             # expected post body
@@ -152,7 +161,7 @@ class UploadHandler(tornado.web.RequestHandler):
         except Exception as e:
             raise
 
-class UploadFromURL(tornado.web.RequestHandler):
+class UploadFromURL(TinyFaasManagerBaseHandler):
     async def post(self):
         try:
             # expected post body
@@ -173,7 +182,7 @@ class UploadFromURL(tornado.web.RequestHandler):
         except Exception as e:
             raise
 
-class DeleteHandler(tornado.web.RequestHandler):
+class DeleteHandler(TinyFaasManagerBaseHandler):
     async def post(self):
         try:
             handler_name = self.request.body.decode("utf-8") + '-handler'
@@ -187,7 +196,7 @@ class DeleteHandler(tornado.web.RequestHandler):
         except Exception as e:
             raise
 
-class WipeHandler(tornado.web.RequestHandler):
+class WipeHandler(TinyFaasManagerBaseHandler):
     async def post(self):
         try:
             for f in function_handlers:
@@ -197,7 +206,7 @@ class WipeHandler(tornado.web.RequestHandler):
             raise
 
 
-class ListHandler(tornado.web.RequestHandler):
+class ListHandler(TinyFaasManagerBaseHandler):
     async def get(self):
         try:
             out = []
@@ -210,7 +219,7 @@ class ListHandler(tornado.web.RequestHandler):
         except Exception as e:
             raise
 
-class LogsHandler(tornado.web.RequestHandler):
+class LogsHandler(TinyFaasManagerBaseHandler):
     async def get(self):
         try:
             for f in function_handlers:
