@@ -68,6 +68,10 @@ To manage functions on tinyFaaS, use the included scripts included in `./src/scr
 
 To upload a function, run `upload.sh {FOLDER} {NAME} {THREADS}`, where `{FOLDER}` is the path to your function code, `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
 
+To upload a function directly from the web (for example github) run `upload_from_url.sh {URL} {NAME} {THREADS} {SUBFOLDER_PATH} {BASE64_ENCODED}` where `{URL}` is the url to your function code, `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function. Further `{SUBFOLDER_PATH}` specifies the path within the zip file to your application and `{BASE64_ENCODED}` should be set to `true` if your zip is base64 encoded.
+
+For example to install https://github.com/PaulsBecks/clock-faas you can run `upload_from_url.sh "https://github.com/PaulsBecks/clock-faas/archive/main.zip" "Clock" 2 "/clock-faas-main" false`
+
 To get a list of existing functions, run `list.sh`.
 
 To delete a function, run `delete.sh {NAME}`, where `{NAME}` is the name of the function you want to remove.
