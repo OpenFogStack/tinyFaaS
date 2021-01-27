@@ -97,7 +97,7 @@ Unfortunately, [`curl` does not yet support CoAP](https://curl.se/mail/lib-2018-
 
 To call a tinyFaaS function using its HTTP endpoint, make a GET or POST request to `http://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS HTTP endpoint (default is `80`), and `{NAME}` is the name of your function. You may include data in any form you want, it will be passed to your function.
 
-TLS is not supported.
+TLS is not supported. [(yet?)](https://github.com/OpenFogStack/tinyFaaS/compare)
 
 #### GRPC
 
