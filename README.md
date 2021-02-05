@@ -64,9 +64,14 @@ Please note that you cannot use tinyFaaS until the Reverse Proxy is running.
 
 ### Managing Functions
 
-To manage functions on tinyFaaS, use the included scripts included in `./src/scrips`.
+To manage functions on tinyFaaS, use the included scripts included in `./src/scripts`.
 
 To upload a function, run `upload.sh {FOLDER} {NAME} {THREADS}`, where `{FOLDER}` is the path to your function code, `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
+For example, you might call `./src/scripts/upload.sh "./examples/sieve-of-erasthostenes" "sieve" 1` to upload the example function included in this repository.
+
+Alternatively, you can also upload functions from a zipped file available at some URL.
+Use the included script as a starting point: `uploadURL.sh {URL} {NAME} {THREADS} {SUBFOLDER_PATH}`, where `{URL}` is the URL to a zip that has your function code, `{SUBFOLDER_PATH}` is the folder of the code within that zip (use `/` if the code is in the top-level), `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
+For example, you might call `uploadURL.sh "https://github.com/OpenFogStack/tinyFaas/archive/master.zip" "tinyFaaS-master/examples/sieve-of-erasthostenes" "sieve" 1` to upload the example function included in this repository.
 
 To get a list of existing functions, run `list.sh`.
 

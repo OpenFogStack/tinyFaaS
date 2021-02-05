@@ -4,5 +4,5 @@
 
 
 pushd $1 >/dev/null
-curl http://localhost:8080/upload --data "{\"environment\": {\"ENVVAR\":\"value\" }, \"name\": \"$2\", \"threads\": $3, \"zip\": \"`zip -r - * | base64`\"}"
+curl http://localhost:8080/upload --data "{\"name\": \"$2\", \"threads\": $3, \"zip\": \"`zip -r - * | base64`\"}"
 popd >/dev/null

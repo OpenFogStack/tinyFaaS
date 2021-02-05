@@ -12,6 +12,7 @@ import sys
 import shutil
 import hashlib
 import os
+import requests
 
 CONFIG_PORT = 8080
 endpoint_container = {}
@@ -38,25 +39,44 @@ def create_endpoint(meta_container, coapPort, httpPort, grpcPort):
         ports['8000/tcp'] = grpcPort
     
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, name="tinyfaas-reverse-proxy")
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, name='tinyfaas-reverse-proxy')
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
     endpoint_network.connect(meta_container)
 
+def create_function(name, threads, path, resource, funczip, subfolder_path=None):
+    try:
+        shutil.rmtree('./tmp', ignore_errors=True)
+
+        f = zipfile.ZipFile(io.BytesIO(funczip))
+
+        path = './tmp'
+
+        f.extractall(path='./tmp')
+
+        if subfolder_path is not None:
+            path = os.path.join(path, subfolder_path)
+
+        package_json = tornado.escape.json_decode(open(os.path.join(path, 'package.json')).read())
+
+        func_entry = package_json['main']
+
+        if name in function_handlers:
+            function_handlers[name].destroy()
+
+        function_handlers[name] = FunctionHandler(function_name=name, function_resource=resource, function_entry=func_entry, function_threads=threads, file_path=path)
+        function_handlers[name].zip_hash = hashlib.sha256(base64.b64encode(funczip)).hexdigest()
+    except Exception as e:
+            raise
+
 class FunctionHandler():
-    def __init__(self, function_name, function_resource, function_path, function_entry, function_threads, environment):
+    def __init__(self, function_name, function_resource, function_entry, function_threads, file_path='./tmp'):
         self.client = docker.from_env()
         self.function_resource = function_resource
         self.name = function_name
         shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
-        shutil.copytree('./tmp', './handler-runtime/fn')
-
-        # copy all files in ./templates/functionhandler to handler-runtime/[function_path]
-#        shutil.copytree('./templates/functionhandler', './handler-runtime/' + self.name)
-
-        # copy the folder ./handlers/[function_path] to handler-runtime/[function_path]
-#        shutil.copytree('./tmp', './handler-runtime/' + self.name + '/' + function_path)
+        shutil.copytree(file_path, './handler-runtime/fn')
 
         self.this_image = self.client.images.build(path='./handler-runtime', rm=True)[0]
 
@@ -73,24 +93,26 @@ class FunctionHandler():
         self.this_containers = list([None]*self.thread_count)
 
         for i in range(0, self.thread_count):
-            self.this_containers[i] = self.client.containers.run(self.this_image, environment=environment, network=self.this_network.name, detach=True)
+            self.this_containers[i] = self.client.containers.run(self.this_image, network=self.this_network.name, detach=True, name=function_name + '-' + str(i))
             # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
             self.this_handler_ips[i] = docker.APIClient().inspect_network(self.this_network.id)['Containers'][self.this_containers[i].id]['IPv4Address'][:-3]
 
         # tell endpoint about new function
         function_handler = {
-            "function_resource": self.function_resource,
-            "function_containers": self.this_handler_ips
+            'function_resource': self.function_resource,
+            'function_containers': self.this_handler_ips
         }
 
         data = json.dumps(function_handler).encode('ascii')
 
         urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
+
+        shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
         
     def destroy(self):
         function_handler = {
-            "function_resource": self.function_resource,
-            "function_containers": []
+            'function_resource': self.function_resource,
+            'function_containers': []
         }
         data = json.dumps(function_handler).encode('ascii')
         urllib.request.urlopen(url='http://' + endpoint_container['ipaddr'] + ':80', data=data)
@@ -110,52 +132,67 @@ class UploadHandler(tornado.web.RequestHandler):
         try:
             # expected post body
             # {
-            #     name: "name"
-            #     environment: {}
+            #     name: "name",
             #     threads: 2,
             #     zip: "base64-zip"
             # }
             #
 
-            function_data = tornado.escape.json_decode(self.request.body)
-            environment = function_data['environment']
-            environment["TINYFAAS"] = "true"
-            function_threads = function_data['threads']
-            function_name = function_data['name'] + '-handler'
-            function_path = function_data['name']
+            b = tornado.escape.json_decode(self.request.body)
+            name = b['name'] + '-handler'
+            threads = b['threads']
+            path = b['name']
+            resource = '/' + b['name']
+            funczip = base64.b64decode(b['zip'])
 
-            function_resource = "/" + function_data['name']
-            shutil.rmtree('./tmp', ignore_errors=True)
-            function_zip = function_data['zip']   
-            function_zip = base64.b64decode(function_zip)
-
-            function_zip_file = io.BytesIO(function_zip)
-
-            zip = zipfile.ZipFile(function_zip_file)
-            zip.extractall(path='./tmp')
-
-            package_json = tornado.escape.json_decode(open('./tmp/package.json').read())
-            function_entry = package_json['main']
- 
-
-            if function_name in function_handlers:
-                function_handlers[function_name].destroy()
-
-            function_handlers[function_name] = FunctionHandler(function_name, function_resource, function_path, function_entry, function_threads, environment)
-            function_handlers[function_name].zip_hash = hashlib.sha256(function_zip).hexdigest()
+            create_function(name=name, threads=threads, path=path, resource=resource, funczip=funczip)
 
         except Exception as e:
             raise
+
+class URLUploadHandler(tornado.web.RequestHandler):
+    async def post(self):
+        try:
+            # expected post body
+            # {
+            #     name: "name",
+            #     threads: 2,
+            #     url: "https://github.com/OpenFogStack/tinyFaaS/archive/master.zip",
+            #     subfolder_path: "/examples/sieve-of-erasthostenes"
+            # }
+            #
+
+            b = tornado.escape.json_decode(self.request.body)
+            name = b['name'] + '-handler'
+            threads = b['threads']
+            path = b['name']
+            resource = '/' + b['name']
+            funcurl = b['url']
+
+            subfolder_path = None
+
+            if 'subfolder_path' in b:
+                subfolder_path = b['subfolder_path']
+
+            r = requests.get(funcurl, allow_redirects=True)
+
+            funczip = r.content
+
+            create_function(name=name, threads=threads, path=path, resource=resource, funczip=funczip, subfolder_path=subfolder_path)
+
+        except Exception as e:
+            raise
+
 class DeleteHandler(tornado.web.RequestHandler):
     async def post(self):
         try:
-            handler_name = self.request.body.decode("utf-8") + '-handler'
+            handler_name = self.request.body.decode('utf-8') + '-handler'
             # expected json {name: "function-name-from-pkg-json"}
             if handler_name in function_handlers:
                 function_handlers[handler_name].destroy()
                 del function_handlers[handler_name]
             else:
-                self.write("Not found")
+                self.write('Not found')
 
         except Exception as e:
             raise
@@ -175,10 +212,10 @@ class ListHandler(tornado.web.RequestHandler):
         try:
             out = []
             for f in function_handlers:
-                out.append({"name": function_handlers[f].name[:-len("-handler")], 
-                "hash": function_handlers[f].zip_hash, 
-                "threads": function_handlers[f].thread_count,
-                "resource": function_handlers[f].function_resource})
+                out.append({'name': function_handlers[f].name[:-len('-handler')], 
+                'hash': function_handlers[f].zip_hash, 
+                'threads': function_handlers[f].thread_count,
+                'resource': function_handlers[f].function_resource})
             self.write(json.dumps(out) + '\n')
         except Exception as e:
             raise
@@ -197,13 +234,13 @@ class LogsHandler(tornado.web.RequestHandler):
 def main(args):
     
     # default coap port is 5683
-    coapPort = int(os.getenv('COAP_PORT', "5683"))
+    coapPort = int(os.getenv('COAP_PORT', '5683'))
 
     # http port
-    httpPort = int(os.getenv('HTTP_PORT', "80"))
+    httpPort = int(os.getenv('HTTP_PORT', '80'))
 
     # grpc port
-    grpcPort = int(os.getenv('GRPC_PORT', "8000"))
+    grpcPort = int(os.getenv('GRPC_PORT', '8000'))
 
     if len(args) != 2:
         raise ValueError('Too many or too little arguments provided:\n' + json.dumps(args) + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')
@@ -224,7 +261,8 @@ def main(args):
         (r'/delete', DeleteHandler),
         (r'/list', ListHandler),
         (r'/wipe', WipeHandler),
-        (r'/logs', LogsHandler)
+        (r'/logs', LogsHandler),
+        (r'/uploadURL', URLUploadHandler)
     ])
     app.listen(CONFIG_PORT)
     tornado.ioloop.IOLoop.current().start()
