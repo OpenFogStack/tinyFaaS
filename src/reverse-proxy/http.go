@@ -22,24 +22,28 @@ func startHTTPServer(f *functions) {
 
 		handler, ok := f.hosts[p]
 
-		if ok {
-			// call function and return results
-			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
-
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			body, err := ioutil.ReadAll(resp.Body)
-
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			w.Write(body)
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
 		}
+
+		// call function and return results
+		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		body, err := ioutil.ReadAll(resp.Body)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Write(body)
+
 	})
 
 	http.ListenAndServe(":7000", mux)
