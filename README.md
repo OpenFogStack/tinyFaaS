@@ -56,7 +56,7 @@ OR
 
 ```bash
 docker build -t tinyfaas-mgmt ./src/
-docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
+docker run -rm -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
 ```
 
 The Reverse Proxy will be built and started automatically.

@@ -39,7 +39,7 @@ def create_endpoint(meta_container, coapPort, httpPort, grpcPort):
         ports['8000/tcp'] = grpcPort
     
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, name='tinyfaas-reverse-proxy')
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, , remove=True, name='tinyfaas-reverse-proxy')
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
@@ -93,7 +93,7 @@ class FunctionHandler():
         self.this_containers = list([None]*self.thread_count)
 
         for i in range(0, self.thread_count):
-            self.this_containers[i] = self.client.containers.run(self.this_image, network=self.this_network.name, detach=True, name=function_name + '-' + str(i))
+            self.this_containers[i] = self.client.containers.run(self.this_image, network=self.this_network.name, detach=True, remove=True, name=function_name + '-' + str(i))
             # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
             self.this_handler_ips[i] = docker.APIClient().inspect_network(self.this_network.id)['Containers'][self.this_containers[i].id]['IPv4Address'][:-3]
 

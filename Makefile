@@ -4,7 +4,7 @@ start: ## Start tinyFaaS
 	@docker build -t tinyfaas-mgmt ./src/
 	@docker build ./src/reverse-proxy
 	@docker pull node:10-alpine
-	@docker run -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
+	@docker run -rm -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
 
 clean: ## Remove tinyFaaS
 	@docker rm -f tinyfaas-mgmt > /dev/null || true
