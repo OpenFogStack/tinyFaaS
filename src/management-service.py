@@ -39,7 +39,7 @@ def create_endpoint(meta_container, coapPort, httpPort, grpcPort):
         ports['8000/tcp'] = grpcPort
     
 
-    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, , remove=True, name='tinyfaas-reverse-proxy')
+    endpoint_container['container'] = client.containers.run(endpoint_image, network=endpoint_network.name, ports=ports, detach=True, remove=True, name='tinyfaas-reverse-proxy')
     # getting IP address of the handler container by inspecting the network and converting CIDR to IPv4 address notation (very dirtily, removing the last 3 chars -> i.e. '/20', so let's hope we don't have a /8 subnet mask)
     endpoint_container['ipaddr'] = docker.APIClient().inspect_network(endpoint_network.id)['Containers'][endpoint_container['container'].id]['IPv4Address'][:-3]
 
@@ -243,7 +243,7 @@ def main(args):
     grpcPort = int(os.getenv('GRPC_PORT', '8000'))
 
     if len(args) != 2:
-        raise ValueError('Too many or too little arguments provided:\n' + json.dumps(args) + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')
+        raise ValueError('Too many or too few arguments provided:\n' + json.dumps(args) + '\nUsage: management-service.py [tinyfaas-mgmt container name] <endpoint port>')
 
     meta_container = args[1]
 
