@@ -1,4 +1,4 @@
-FROM golang:alpine as golang
+FROM golang:1.16.4-alpine@sha256:0dc62c5cc2d97657c17ff3bc0224214e10226e245c94317e352ee8a2c54368b4 as builder
 
 WORKDIR /go/src/app
 COPY . .
@@ -15,7 +15,7 @@ EXPOSE 6000/udp
 EXPOSE 7000/tcp
 EXPOSE 8000/tcp
 
-COPY --from=golang /go/bin/reverse-proxy app
+COPY --from=builder /go/bin/reverse-proxy app
 
 ENTRYPOINT [ "./app" ]
 
