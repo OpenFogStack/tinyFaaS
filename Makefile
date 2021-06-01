@@ -1,9 +1,13 @@
-.PHONY: start clean
+.PHONY: all start prepare clean
+
+all: clean prepare start
+
+prepare: ## Prepare tinyFaaS
+	@docker build -t tinyfaas-mgmt ./src/
+	@docker build -t tinyfaas-reverse-proxy ./src/reverse-proxy/
+	@docker pull node:10-alpine@sha256:dc98dac24efd4254f75976c40bce46944697a110d06ce7fa47e7268470cf2e28
 
 start: ## Start tinyFaaS
-	@docker build -t tinyfaas-mgmt ./src/
-	@docker build ./src/reverse-proxy
-	@docker pull node:10-alpine
 	@docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
 
 clean: ## Remove tinyFaaS
