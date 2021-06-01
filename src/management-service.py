@@ -20,7 +20,7 @@ function_handlers = {}
 
 def create_endpoint(meta_container, coapPort, httpPort, grpcPort):
     client = docker.from_env()
-    endpoint_image = client.images.build(path='./reverse-proxy/', rm=True)[0]
+    endpoint_image = client.images.build(tag='tinyfaas-reverse-proxy', path='./reverse-proxy/', rm=True)[0]
 
     # remove old endpoint-net networks
     for n in client.networks.list(names=['endpoint-net']):
