@@ -68,6 +68,7 @@ To manage functions on tinyFaaS, use the included scripts included in `./src/scr
 
 To upload a function, run `upload.sh {FOLDER} {NAME} {THREADS}`, where `{FOLDER}` is the path to your function code, `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
 For example, you might call `./src/scripts/upload.sh "./examples/sieve-of-erasthostenes" "sieve" 1` to upload the example function included in this repository.
+This requires the `zip`, `base64`, and `curl` utilities.
 
 Alternatively, you can also upload functions from a zipped file available at some URL.
 Use the included script as a starting point: `uploadURL.sh {URL} {NAME} {THREADS} {SUBFOLDER_PATH}`, where `{URL}` is the URL to a zip that has your function code, `{SUBFOLDER_PATH}` is the folder of the code within that zip (use `/` if the code is in the top-level), `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
@@ -145,7 +146,7 @@ To change the port of the management service, change the port binding in the `do
 
 To change or deactivate the endpoints of tinyFaaS, you can use the `COAP_PORT`, `HTTP_PORT`, and `GRPC_PORT` environment variables, which must be passed to the Management Service Docker container.
 Specify `-1` to deactivate a specific endpoint.
-For example, to use `6000` as the port for the CoAP and deactive GRPC, run the Management Service with this command:
+For example, to use `6000` as the port for the CoAP and deactivate GRPC, run the Management Service with this command:
 
 ```bash
 docker run --env COAP_PORT=6000 --env GRPC_PORT=-1 -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
