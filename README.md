@@ -32,7 +32,8 @@ The code in this repository is licensed under the terms of the [MIT](./LICENSE) 
 
 ## Instructions
 
-**Disclaimer**: Please note that this will use your computer's Docker instance to manage containers and will allow anyone in your network to start Docker containers with arbitrary code. If you don't know what this means you do _not_ want to run this on your computer.
+**Disclaimer**: Please note that this will use your computer's Docker instance to manage containers and will allow anyone in your network to start Docker containers with arbitrary code.
+If you don't know what this means you do _not_ want to run this on your computer.
 Additionally, note that this software is provided as a research prototype and is not production ready.
 
 ### About
@@ -95,15 +96,24 @@ Different protocols are useful for different use-cases: CoAP for lightweight com
 
 #### CoAP
 
-To call a tinyFaaS function using its CoAP endpoint, make a GET or POST request to`coap://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS CoAP endpoint (default is `5683`), and `{NAME}` is the name of your function. You may include data in any form you want, it will be passed to your function.
+To call a tinyFaaS function using its CoAP endpoint, make a GET or POST request to`coap://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS CoAP endpoint (default is `5683`), and `{NAME}` is the name of your function.
+You may include data in any form you want, it will be passed to your function.
 
 Unfortunately, [`curl` does not yet support CoAP](https://curl.se/mail/lib-2018-05/0017.html), but [a number of other tools are available](https://coap.technology/).
 
 #### HTTP
 
-To call a tinyFaaS function using its HTTP endpoint, make a GET or POST request to `http://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS HTTP endpoint (default is `80`), and `{NAME}` is the name of your function. You may include data in any form you want, it will be passed to your function.
+To call a tinyFaaS function using its HTTP endpoint, make a GET or POST request to `http://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS HTTP endpoint (default is `80`), and `{NAME}` is the name of your function.
+You may include data in any form you want, it will be passed to your function.
 
 TLS is not supported. [(yet?)](https://github.com/OpenFogStack/tinyFaaS/compare)
+
+To make an asynchronous request, pass the `X-tinyFaaS-Async` header with any value.
+An asynchronous request means the client will receive a `202` response code immediately and no function results will be sent back.
+
+```sh
+curl --header "X-tinyFaaS-Async: true" "http://localhost:8000/sieve"
+```
 
 #### GRPC
 

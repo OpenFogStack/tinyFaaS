@@ -27,6 +27,22 @@ func startHTTPServer(f *functions) {
 			return
 		}
 
+		async := r.Header.Get("X-tinyFaaS-Async") != ""
+
+		if async {
+			w.WriteHeader(http.StatusAccepted)
+			go func() {
+				resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+
+				if err != nil {
+					return
+				}
+
+				resp.Body.Close()
+			}()
+			return
+		}
+
 		// call function and return results
 		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
 
