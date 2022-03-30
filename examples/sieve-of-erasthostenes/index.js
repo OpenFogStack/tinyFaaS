@@ -11,7 +11,7 @@ module.exports = (req, res) => {
       }
     }
   }
-  
+
   console.log("Found primes: " + primes.toString());
 
   res.send(primes.toString() + "\n");
