@@ -1,6 +1,6 @@
 
 module.exports = (req, res) => {
-  const max = 1000;
+  const max = 10000;
   let sieve = [], i, j, primes = [];
   for (i = 2; i <= max; ++i) {
 
@@ -12,8 +12,9 @@ module.exports = (req, res) => {
     }
   }
 
-  console.log("Found primes: " + primes.toString());
+  response = ("Found " + primes.length + " primes under " + max);
 
-  res.send(primes.toString() + "\n");
+  console.log(response);
 
+  res.send(response + "\n");
 }
