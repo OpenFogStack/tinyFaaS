@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
@@ -11,63 +12,66 @@ import (
 
 func startCoAPServer(f *functions) {
 
-	mux := coap.NewServeMux()
-
-	mux.Handle("/", coap.FuncHandler(
+	h := coap.FuncHandler(
 		func(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 
-			if m.IsConfirmable() {
-				f.RLock()
-				defer f.RUnlock()
+			log.Printf("have request: %+v", m)
+			log.Printf("is confirmable: %v", m.IsConfirmable())
+			log.Printf("path: %s", m.PathString())
 
-				p := m.PathString()
+			f.RLock()
+			defer f.RUnlock()
 
-				for p != "" && p[0] == '/' {
-					p = p[1:]
-				}
+			p := m.PathString()
 
-				handler, ok := f.hosts[p]
-
-				if ok {
-					// call function and return results
-					resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
-
-					if err != nil {
-						return &coap.Message{
-							Type: coap.Acknowledgement,
-							Code: coap.InternalServerError,
-						}
-					}
-
-					body, err := ioutil.ReadAll(resp.Body)
-
-					if err != nil {
-						return &coap.Message{
-							Type: coap.Acknowledgement,
-							Code: coap.InternalServerError,
-						}
-					}
-					res := &coap.Message{
-						Type:      coap.Acknowledgement,
-						Code:      coap.Content,
-						MessageID: m.MessageID,
-						Token:     m.Token,
-						Payload:   []byte(body),
-					}
-
-					res.SetOption(coap.ContentFormat, coap.TextPlain)
-
-					return res
-				}
-				return &coap.Message{
-					Type: coap.Acknowledgement,
-					Code: coap.NotFound,
-				}
-
+			for p != "" && p[0] == '/' {
+				p = p[1:]
 			}
 
-			return nil
-		}))
+			handler, ok := f.hosts[p]
 
-	coap.ListenAndServe("udp", ":6000", mux)
+			if !ok {
+				log.Printf("Function not found: %s", p)
+				return &coap.Message{
+					Code: coap.NotFound,
+					Type: coap.Acknowledgement,
+				}
+			}
+
+			// call function and return results
+			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
+
+			if err != nil {
+				return &coap.Message{
+					Type: coap.Acknowledgement,
+					Code: coap.InternalServerError,
+				}
+			}
+
+			body, err := ioutil.ReadAll(resp.Body)
+
+			if err != nil {
+				log.Printf("Error reading body: %s", err)
+				return &coap.Message{
+					Type: coap.Acknowledgement,
+					Code: coap.InternalServerError,
+				}
+			}
+
+			res := &coap.Message{
+				Type:      coap.Acknowledgement,
+				Code:      coap.Content,
+				MessageID: m.MessageID,
+				Token:     m.Token,
+				Payload:   []byte(body),
+			}
+
+			res.SetOption(coap.ContentFormat, coap.TextPlain)
+
+			log.Printf("response: %+v", res)
+
+			return res
+		})
+
+	coap.ListenAndServe("udp", ":6000", h)
 }

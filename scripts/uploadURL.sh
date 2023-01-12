@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# uploadURL.sh url subfolder name threads
+# uploadURL.sh url subfolder name env threads
+
+set -e
 
 if ! command -v curl &> /dev/null
 then
@@ -8,4 +10,4 @@ then
     exit
 fi
 
-curl http://localhost:8080/uploadURL --data "{\"name\": \"$3\", \"threads\": $4,\"url\": \"$1\",\"subfolder_path\": \"$2\"}"
+curl http://localhost:8080/uploadURL --data "{\"name\": \"$3\", \"env\": \"$4\",\"threads\": $5,\"url\": \"$1\",\"subfolder_path\": \"$2\"}"

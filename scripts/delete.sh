@@ -2,6 +2,8 @@
 
 #delete.sh function-name
 
+set -e
+
 if ! command -v curl &> /dev/null
 then
     echo "curl could not be found but is a pre-requisite for this script"

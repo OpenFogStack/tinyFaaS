@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# upload.sh folder-name name threads
+# upload.sh folder-name name env threads
+
+set -e
 
 if ! command -v curl &> /dev/null
 then
@@ -21,5 +23,5 @@ then
 fi
 
 pushd "$1" >/dev/null || exit
-curl http://localhost:8080/upload --data "{\"name\": \"$2\", \"threads\": $3, \"zip\": \"$(zip -r - ./* | base64 | tr -d '\n')\"}"
+curl http://localhost:8080/upload --data "{\"name\": \"$2\", \"env\": \"$3\", \"threads\": $4, \"zip\": \"$(zip -r - ./* | base64 | tr -d '\n')\"}"
 popd >/dev/null || exit
