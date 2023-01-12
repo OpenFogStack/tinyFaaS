@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -38,8 +39,10 @@ func startCoAPServer(f *functions) {
 				}
 			}
 
+			req_body := m.Payload
+
 			// call function and return results
-			resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
+			resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(req_body))
 
 			if err != nil {
 				return &coap.Message{
@@ -48,7 +51,8 @@ func startCoAPServer(f *functions) {
 				}
 			}
 
-			body, err := ioutil.ReadAll(resp.Body)
+			defer resp.Body.Close()
+			res_body, err := ioutil.ReadAll(resp.Body)
 
 			if err != nil {
 				log.Printf("Error reading body: %s", err)
@@ -63,7 +67,7 @@ func startCoAPServer(f *functions) {
 				Code:      coap.Content,
 				MessageID: m.MessageID,
 				Token:     m.Token,
-				Payload:   []byte(body),
+				Payload:   []byte(res_body),
 			}
 
 			res.SetOption(coap.ContentFormat, coap.TextPlain)

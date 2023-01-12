@@ -38,10 +38,10 @@ Additionally, note that this software is provided as a research prototype and is
 
 ### About
 
-tinyFaaS comprises the _Management Service_, the _Reverse Proxy_, and a number of _Function Handlers_.
-In order to run tinyFaaS, the Management Service has to be deployed.
-It will then automatically start the Reverse Proxy.
-Once a function is deployed to tinyFaaS, Function Handlers are created automatically.
+tinyFaaS comprises the _management service_, the _reverse proxy_, and a number of _function handlers_.
+In order to run tinyFaaS, the management service has to be deployed.
+It will then automatically start the reverse proxy.
+Once a function is deployed to tinyFaaS, function handlers are created automatically.
 
 ### Getting Started
 
@@ -60,20 +60,20 @@ docker build -t tinyfaas-mgmt ./src/
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
 ```
 
-The Reverse Proxy will be built and started automatically.
-Please note that you cannot use tinyFaaS until the Reverse Proxy is running.
+The reverse proxy will be built and started automatically.
+Please note that you cannot use tinyFaaS until the reverse proxy is running.
 
 ### Managing Functions
 
 To manage functions on tinyFaaS, use the included scripts included in `./src/scripts`.
 
-To upload a function, run `upload.sh {FOLDER} {NAME} {THREADS}`, where `{FOLDER}` is the path to your function code, `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
-For example, you might call `./scripts/upload.sh "./examples/sieve-of-erasthostenes" "sieve" 1` to upload the example function included in this repository.
+To upload a function, run `upload.sh {FOLDER} {NAME} {ENV} {THREADS}`, where `{FOLDER}` is the path to your function code, `{NAME}` is the name for your function, `{ENV}` is the environment you would like to use (`python3`, `nodejs`, or `binary`), and `{THREADS}` is a number specifying the number of function handlers for your function.
+For example, you might call `./scripts/upload.sh "./examples/sieve-of-erasthostenes" "sieve" "nodejs" 1` to upload the _sieve of Eratosthenes_ example function included in this repository.
 This requires the `zip`, `base64`, and `curl` utilities.
 
 Alternatively, you can also upload functions from a zipped file available at some URL.
-Use the included script as a starting point: `uploadURL.sh {URL} {NAME} {THREADS} {SUBFOLDER_PATH}`, where `{URL}` is the URL to a zip that has your function code, `{SUBFOLDER_PATH}` is the folder of the code within that zip (use `/` if the code is in the top-level), `{NAME}` is the name for your function, and `{THREADS}` is a number specifying the number of Function Handlers for your function.
-For example, you might call `uploadURL.sh "https://github.com/OpenFogStack/tinyFaas/archive/master.zip" "tinyFaaS-master/examples/sieve-of-erasthostenes" "sieve" 1` to upload the example function included in this repository.
+Use the included script as a starting point: `uploadURL.sh {URL} {NAME} {ENV} {THREADS} {SUBFOLDER_PATH}`, where `{URL}` is the URL to a zip that has your function code, `{SUBFOLDER_PATH}` is the folder of the code within that zip (use `/` if the code is in the top-level), `{NAME}` is the name for your function, `{ENV}` is the environment, and `{THREADS}` is a number specifying the number of function handlers for your function.
+For example, you might call `uploadURL.sh "https://github.com/OpenFogStack/tinyFaas/archive/main.zip" "tinyFaaS-main/test/fns/sieve-of-erasthostenes" "sieve" "nodejs" 1` to upload the _sieve of Eratosthenes_ example function included in this repository.
 
 To get a list of existing functions, run `list.sh`.
 
@@ -83,15 +83,36 @@ Additionally, we provide scripts to read logs from your function and to wipe all
 
 ### Writing Functions
 
-This tinyFaaS prototype only supports functions written for NodeJS 10.
+This tinyFaaS prototype only supports functions written for NodeJS 10, Python 3.9, and binary functions.
+
+#### NodeJS 10
+
 Your function must be supplied as a Node module with the name `fn` that exports a single function that takes the `req` and `res` parameters for request and response, respectively.
 `res` supports the `send()` function that has one parameter, a string that is passed to the client as-is.
 
-To get started with functions, use the example "Sieve of Erasthostenes" function in `./examples/sieve-of-erasthostenes`.
+To get started with functions, use the example _sieve of Erasthostenes_ function in [`./tests/fns/sieve-of-erasthostenes`](./tests/fns/sieve-of-erasthostenes).
+
+#### Python 3.9
+
+Your function must be supplied as a file named `fn.py` that exposes a method `fn` that is invoked for every function invocation.
+This method must accept a string as an input (that can also be `None`) and must provide a string as a return value.
+You may also provide a `requirements.txt` file from which dependencies will be installed alongside your function.
+Any other data you provide will be available.
+
+To get started with this type of function, use the example `echo` function in [`./tests/fns/echo`](./tests/fns/echo).
+
+#### Binary
+
+Your function must be provided as a `fn.sh` shell script that is invoked for every function call.
+This shell script may also call other binaries as needed.
+Input data is provided from `stdin`.
+Output responses should be provided on `stdout`.
+
+To get started with this type of function, use the example `echo-binary` function in [`./tests/fns/echo-binary`](./tests/fns/echo-binary).
 
 ### Calling Functions
 
-tinyFaaS supports different application layer protocols at its Reverse Proxy.
+tinyFaaS supports different application layer protocols at its reverse proxy.
 Different protocols are useful for different use-cases: CoAP for lightweight communication, e.g., for IoT devices; HTTP to support traditional web applications; GRPC for inter-process communication.
 
 #### CoAP
@@ -117,12 +138,12 @@ curl --header "X-tinyFaaS-Async: true" "http://localhost:8000/sieve"
 
 #### GRPC
 
-To use the GRPC endpoint, compile the `api` protocol buffer as included in `./src/reverse-proxy/api` and import it into your application.
+To use the GRPC endpoint, compile the `api` protocol buffer as included in [`./src/reverse-proxy/api`](./src/reverse-proxy/api) and import it into your application.
 Specify the tinyFaaS host and port (default is `8000`) for the GRPC endpoint and use the `Request` function with the `functionIdentifier` being your function's name and the `data` field including data in any form you want.
 
 ### Removing tinyFaaS
 
-To remove tinyFaaS, remove all containers created by tinyFaaS and the Management Service, as well as the internal networks used by tinyFaaS:
+To remove tinyFaaS, remove all containers created by tinyFaaS and the management service, as well as the internal networks used by tinyFaaS:
 
 ```bash
 make clean
@@ -154,9 +175,9 @@ By default, tinyFaaS will use the following ports:
 
 To change the port of the management service, change the port binding in the `docker run` command.
 
-To change or deactivate the endpoints of tinyFaaS, you can use the `COAP_PORT`, `HTTP_PORT`, and `GRPC_PORT` environment variables, which must be passed to the Management Service Docker container.
+To change or deactivate the endpoints of tinyFaaS, you can use the `COAP_PORT`, `HTTP_PORT`, and `GRPC_PORT` environment variables, which must be passed to the management service Docker container.
 Specify `-1` to deactivate a specific endpoint.
-For example, to use `6000` as the port for the CoAP and deactivate GRPC, run the Management Service with this command:
+For example, to use `6000` as the port for the CoAP and deactivate GRPC, run the management service with this command:
 
 ```bash
 docker run --env COAP_PORT=6000 --env GRPC_PORT=-1 -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt

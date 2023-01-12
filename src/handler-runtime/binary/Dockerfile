@@ -8,5 +8,6 @@ WORKDIR /usr/src/app
 
 COPY . .
 RUN mv fn/* .
+RUN chmod +x fn.sh
 
 CMD [ "python3", "functionhandler.py" ]

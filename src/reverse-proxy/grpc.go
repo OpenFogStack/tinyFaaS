@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
+	"strings"
 
 	"github.com/OpenFogStack/tinyFaaS/reverse-proxy/api"
 	"google.golang.org/grpc"
@@ -27,31 +28,33 @@ func (s *GRPCServer) Request(ctx context.Context, d *api.Data) (*api.Response, e
 
 	handler, ok := s.f.hosts[d.FunctionIdentifier]
 
-	if ok {
-		// call function and return results
-		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
-
-		if err != nil {
-			return nil, status.Errorf(codes.Unavailable,
-				"Invalid response from function handler")
-		}
-
-		body, err := ioutil.ReadAll(resp.Body)
-
-		if err != nil {
-			return nil, status.Errorf(codes.Unavailable,
-				"Invalid response from function handler")
-
-		}
-
-		return &api.Response{
-			Response: string(body),
-		}, nil
+	if !ok {
+		return nil, status.Errorf(codes.NotFound,
+			"No such function")
 	}
 
-	return nil, status.Errorf(codes.NotFound,
-		"No such function")
+	req_body := d.Data
 
+	// call function and return results
+	resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", strings.NewReader(req_body))
+
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable,
+			"Invalid response from function handler")
+	}
+
+	defer resp.Body.Close()
+	res_body, err := ioutil.ReadAll(resp.Body)
+
+	if err != nil {
+		return nil, status.Errorf(codes.Unavailable,
+			"Invalid response from function handler")
+
+	}
+
+	return &api.Response{
+		Response: string(res_body),
+	}, nil
 }
 
 func startGRPCServer(f *functions) {
