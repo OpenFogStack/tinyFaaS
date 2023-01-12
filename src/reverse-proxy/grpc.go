@@ -29,7 +29,7 @@ func (s *GRPCServer) Request(ctx context.Context, d *api.Data) (*api.Response, e
 
 	if ok {
 		// call function and return results
-		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
 
 		if err != nil {
 			return nil, status.Errorf(codes.Unavailable,

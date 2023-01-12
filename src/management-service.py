@@ -1,5 +1,4 @@
 from __future__ import annotations
-from xml.dom import ValidationErr
 
 import zipfile
 import io
@@ -11,11 +10,13 @@ import sys
 import shutil
 import hashlib
 import os
+import time
 import requests
 import logging
 import typing
 import urllib
 import urllib.request
+import uuid
 
 import tornado.escape
 import tornado.ioloop
@@ -30,10 +31,10 @@ class FunctionHandler(object):
         self,
         function_name: str,
         function_resource: str,
-        function_entry: str,
+        function_env: str,
         function_threads: int,
         zip_hash: str,
-        file_path: str='./tmp'
+        file_path: str
         ):
 
         logging.debug(f'creating new function handler for {function_name}')
@@ -43,10 +44,23 @@ class FunctionHandler(object):
         self.name = function_name
         self.zip_hash = zip_hash
 
-        shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
-        shutil.copytree(file_path, './handler-runtime/fn')
+        # create handler runtime image
+        # create a temporary directory
+        path = os.path.join("./tmp", str(uuid.uuid4()))
 
-        self.this_image = self.client.images.build(path='./handler-runtime', rm=True)[0]
+        os.makedirs(path, exist_ok=True)
+
+        fn_path = os.path.join(path, "fn")
+
+        os.makedirs(fn_path, exist_ok=True)
+
+        # copy function stuff into fn_path
+        shutil.copytree(file_path, fn_path, dirs_exist_ok=True)
+
+        # copy base stuff into the path
+        shutil.copytree(f'./handler-runtime/{function_env}', path, dirs_exist_ok=True)
+
+        self.this_image = self.client.images.build(path=path, rm=True)[0]
 
         self.thread_count = function_threads
 
@@ -54,6 +68,9 @@ class FunctionHandler(object):
         self.this_network = self.client.networks.create(self.name + '-net', driver='bridge')
 
         self.this_network.connect(management_service.endpoint_container.name)
+
+        # connect metacontainer to make health check
+        self.this_network.connect(management_service.meta_container)
 
         self.this_handler_ips: typing.List[str] = []
         # create handler container(s)
@@ -67,14 +84,36 @@ class FunctionHandler(object):
         # tell endpoint about new function
         function_handler = {
             'function_resource': self.function_resource,
-            'function_containers': self.this_handler_ips
+            'function_containers': self.this_handler_ips,
         }
 
         data = json.dumps(function_handler).encode('ascii')
 
+        # wait for the containers to be up and running
+        for container in self.this_containers:
+            container.reload()
+            count = 0
+            while container.status != 'running':
+                count += 1
+                logging.debug(f'waiting for {container.name} to be up and running... ({count})')
+                container.reload()
+                time.sleep(0.1)
+
+        # wait for /health to be available
+        for ip in self.this_handler_ips:
+            count = 0
+            while True:
+                count += 1
+                try:
+                    urllib.request.urlopen(url=f'http://{ip}:8000/health', timeout=0.1)
+                    break
+                except Exception as e:
+                    logging.debug(f'waiting for server at {ip} to be healthy... ({count})')
+                    time.sleep(0.1)
+
         urllib.request.urlopen(url='http://' + management_service.endpoint_container_ipaddr + ':80', data=data)
 
-        shutil.rmtree('./handler-runtime/fn', ignore_errors=True)
+        shutil.rmtree(path, ignore_errors=True)
 
     def destroy(self) -> None:
 
@@ -96,41 +135,55 @@ class FunctionHandler(object):
         self.this_network.remove()
 
 class UploadHandler(tornado.web.RequestHandler):
-    async def post(self) -> None:
+    def post(self) -> None:
         try:
             # expected post body
             # {
             #     name: "name",
             #     threads: 2,
+            #     env: "python3" | "nodejs", | "binary",
             #     zip: "base64-zip"
             # }
             #
 
+            logging.debug(self.request.body)
+
             b = tornado.escape.json_decode(self.request.body)
 
-            logging.debug(f"got request to create function {b['name']} with f{b['threads']} threads")
+            logging.debug(f"got request to create function {b['name']} with {b['threads']} threads")
 
             name = b['name'] + '-handler'
             threads = b['threads']
+            env = b['env']
             path = b['name']
             resource = '/' + b['name']
             funczip = base64.b64decode(b['zip'], validate=False)
 
-            management_service.create_function(name=name, threads=threads, path=path, resource=resource, funczip=funczip)
+            management_service.create_function(name=name, env=env, threads=threads, path=path, resource=resource, funczip=funczip)
+
+            self.write(f"created function {name} with {threads} threads")
+            self.flush()
 
         except Exception as e:
+            logging.error(f"error while creating function: {e}")
+            self.set_status(500)
+            self.write(f"error while creating function: {e}")
+            self.finish()
             raise e
 
 class URLUploadHandler(tornado.web.RequestHandler):
-    async def post(self) -> None:
+    def post(self) -> None:
         try:
             # expected post body
             # {
             #     name: "name",
             #     threads: 2,
             #     url: "https://github.com/OpenFogStack/tinyFaaS/archive/master.zip",
+            #     env: "python3" | "nodejs", | "binary"
             #     subfolder_path: "/examples/sieve-of-erasthostenes"
             # }
+
+            logging.debug(self.request.body)
 
             b = tornado.escape.json_decode(self.request.body)
 
@@ -138,6 +191,7 @@ class URLUploadHandler(tornado.web.RequestHandler):
 
             name = b['name'] + '-handler'
             threads = b['threads']
+            env = b['env']
             path = b['name']
             resource = '/' + b['name']
             funcurl = b['url']
@@ -151,13 +205,18 @@ class URLUploadHandler(tornado.web.RequestHandler):
 
             funczip = r.content
 
-            management_service.create_function(name=name, threads=threads, path=path, resource=resource, funczip=funczip, subfolder_path=subfolder_path)
+            management_service.create_function(name=name, env=env, threads=threads, path=path, resource=resource, funczip=funczip, subfolder_path=subfolder_path)
+
+            self.finish(f"created function {name} with {threads} threads")
 
         except Exception as e:
+            logging.error(f"error while creating function: {e}")
+            self.set_status(500)
+            self.finish(f"error while creating function: {e}")
             raise e
 
 class DeleteHandler(tornado.web.RequestHandler):
-    async def post(self) -> None:
+    def post(self) -> None:
         try:
             name = self.request.body.decode('utf-8')
             logging.debug(f'got request to delete function {name}')
@@ -166,25 +225,36 @@ class DeleteHandler(tornado.web.RequestHandler):
             if handler_name in management_service.function_handlers:
                 management_service.function_handlers[handler_name].destroy()
                 del management_service.function_handlers[handler_name]
+
+                self.finish(f"deleted function {name}")
+
             else:
                 self.write('Not found')
 
         except Exception as e:
+            logging.error(f"error while deleting function: {e}")
+            self.set_status(500)
+            self.finish(f"error while deleting function: {e}")
             raise e
 
 class WipeHandler(tornado.web.RequestHandler):
-    async def post(self) -> None:
+    def post(self) -> None:
         logging.debug('got request to wipe all functions')
         try:
             for f in management_service.function_handlers:
                 management_service.function_handlers[f].destroy()
             management_service.function_handlers.clear()
+            self.finish("wiped all functions")
+
         except Exception as e:
+            logging.error(f"error while wiping functions: {e}")
+            self.set_status(500)
+            self.finish(f"error while wiping functions: {e}")
             raise e
 
 
 class ListHandler(tornado.web.RequestHandler):
-    async def get(self) -> None:
+    def get(self) -> None:
         logging.debug('got request to list handlers')
         try:
             out = []
@@ -193,19 +263,28 @@ class ListHandler(tornado.web.RequestHandler):
                 'hash': management_service.function_handlers[f].zip_hash,
                 'threads': management_service.function_handlers[f].thread_count,
                 'resource': management_service.function_handlers[f].function_resource})
-            self.write(json.dumps(out) + '\n')
+            self.finish(json.dumps(out) + '\n')
+
         except Exception as e:
+            logging.error(f"error while listing functions: {e}")
+            self.set_status(500)
+            self.finish(f"error while listing functions: {e}")
             raise e
 
 class LogsHandler(tornado.web.RequestHandler):
-    async def get(self) -> None:
+    def get(self) -> None:
         logging.debug('got request to get logs')
         try:
             for f in management_service.function_handlers:
                 handler = management_service.function_handlers[f]
                 for cont in handler.this_containers:
                     self.write(cont.logs())
+            self.finish()
+
         except Exception as e:
+            logging.error(f"error while getting logs: {e}")
+            self.set_status(500)
+            self.finish(f"error while getting logs: {e}")
             raise e
 
 class ManagementService():
@@ -293,19 +372,17 @@ class ManagementService():
         # add our container to the endpoint-net network
         self.endpoint_network.connect(meta_container)
 
-    def create_function(self, name: str, threads: int, path: str, resource: str, funczip: bytes, subfolder_path: typing.Optional[str]=None) -> None:
+    def create_function(self, name: str, env: str, threads: int, path: str, resource: str, funczip: bytes, subfolder_path: typing.Optional[str]=None) -> None:
         """
         Creates a function container and attaches it to the endpoint net network.
         """
 
         logging.debug(f'creating function {name}')
 
-        path = './tmp'
+        path = os.path.join('./tmp', str(uuid.uuid4()))
+        os.makedirs(path, exist_ok=True)
 
         try:
-            # remove any old tmp directory
-            shutil.rmtree(path, ignore_errors=True)
-
             # funczip is a zip file containing the function code
             f = zipfile.ZipFile(io.BytesIO(funczip))
 
@@ -318,14 +395,6 @@ class ManagementService():
             if subfolder_path is not None:
                 path = os.path.join(path, subfolder_path)
 
-            # read the package_json file to find out what the entry point of the
-            # function is
-            package_json = tornado.escape.json_decode(open(os.path.join(path, 'package.json')).read())
-
-            func_entry = package_json['main']
-
-            logging.debug(f'function entry point: {func_entry}')
-
             # if we know this function already, we need to update it in-place
             if name in self.function_handlers:
                 logging.debug(f'function {name} exists already, destroying and recreating')
@@ -334,7 +403,9 @@ class ManagementService():
             logging.debug(f'creating function handler for {name}')
 
             # create a new function handler
-            self.function_handlers[name] = FunctionHandler(function_name=name, function_resource=resource, function_entry=func_entry, function_threads=threads, zip_hash=hashlib.sha256(base64.b64encode(funczip)).hexdigest(), file_path=path)
+            self.function_handlers[name] = FunctionHandler(function_name=name, function_resource=resource, function_env=env, function_threads=threads, zip_hash=hashlib.sha256(base64.b64encode(funczip)).hexdigest(), file_path=path)
+
+            shutil.rmtree(path)
 
         except Exception as e:
                 raise e

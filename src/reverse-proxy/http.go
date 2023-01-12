@@ -2,6 +2,7 @@ package main
 
 import (
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 )
@@ -24,6 +25,7 @@ func startHTTPServer(f *functions) {
 
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
+			log.Printf("Function not found: %s", p)
 			return
 		}
 
@@ -32,7 +34,7 @@ func startHTTPServer(f *functions) {
 		if async {
 			w.WriteHeader(http.StatusAccepted)
 			go func() {
-				resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+				resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
 
 				if err != nil {
 					return
@@ -44,10 +46,11 @@ func startHTTPServer(f *functions) {
 		}
 
 		// call function and return results
-		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000")
+		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			log.Print(err)
 			return
 		}
 
@@ -55,6 +58,7 @@ func startHTTPServer(f *functions) {
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			log.Print(err)
 			return
 		}
 
