@@ -17,20 +17,14 @@ if __name__ == "__main__":
                 print("reporting health: OK")
                 return
 
-            try:
-                subprocess.run(["./fn.sh"], check=True, capture_output=True)
-                self.send_response(200)
-                self.end_headers()
-                return
-            except Exception as e:
-                self.send_response(500)
-                self.end_headers()
-                return
+            self.send_response(404)
+            self.end_headers()
+            return
 
         def do_POST(self) -> None:
-            d = self.rfile.read(int(self.headers["Content-Length"]))
+            d = self.rfile.read(int(self.headers["Content-Length"])).decode("utf-8")
             try:
-                res = subprocess.run(["./fn.sh"], input=d, check=True, capture_output=True)
+                res = subprocess.run(["./fn.sh"], input=d.encode("utf-8"), check=True, capture_output=True)
                 self.send_response(200)
                 self.end_headers()
                 self.wfile.write(res.stdout)

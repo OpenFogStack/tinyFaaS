@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"log"
 	"math/rand"
@@ -31,10 +32,18 @@ func startHTTPServer(f *functions) {
 
 		async := r.Header.Get("X-tinyFaaS-Async") != ""
 
+		req_body, err := ioutil.ReadAll(r.Body)
+
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Print(err)
+			return
+		}
+
 		if async {
 			w.WriteHeader(http.StatusAccepted)
 			go func() {
-				resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
+				resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(req_body))
 
 				if err != nil {
 					return
@@ -46,7 +55,7 @@ func startHTTPServer(f *functions) {
 		}
 
 		// call function and return results
-		resp, err := http.Get("http://" + handler[rand.Intn(len(handler))] + ":8000/fn")
+		resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(req_body))
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -54,7 +63,8 @@ func startHTTPServer(f *functions) {
 			return
 		}
 
-		body, err := ioutil.ReadAll(resp.Body)
+		defer resp.Body.Close()
+		res_body, err := ioutil.ReadAll(resp.Body)
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -62,7 +72,7 @@ func startHTTPServer(f *functions) {
 			return
 		}
 
-		w.Write(body)
+		w.Write(res_body)
 
 	})
 

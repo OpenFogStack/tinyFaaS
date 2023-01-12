@@ -61,22 +61,22 @@ def setUpModule() -> None:
 
     return
 
-# def tearDownModule() -> None:
-#     """stop tinyfaas instance"""
+def tearDownModule() -> None:
+    """stop tinyfaas instance"""
 
-#     # call wipe-functions.sh
-#     try:
-#         subprocess.run(["./wipe-functions.sh"], cwd="../scripts", check=True, capture_output=True)
-#     except subprocess.CalledProcessError as e:
-#         print(f"Failed to wipe functions:\n{e.stderr.decode('utf-8')}")
+    # call wipe-functions.sh
+    try:
+        subprocess.run(["./wipe-functions.sh"], cwd="../scripts", check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to wipe functions:\n{e.stderr.decode('utf-8')}")
 
-#     # call make clean
-#     try:
-#         subprocess.run(["make", "clean"], cwd="..", check=True, capture_output=True)
-#     except subprocess.CalledProcessError as e:
-#         print(f"Failed to clean up:\n{e.stderr.decode('utf-8')}")
+    # call make clean
+    try:
+        subprocess.run(["make", "clean"], cwd="..", check=True, capture_output=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to clean up:\n{e.stderr.decode('utf-8')}")
 
-#     return
+    return
 
 def startFunction(folder_name: str, fn_name: str, env: str, threads: int) -> str:
     """starts a function, returns name"""
