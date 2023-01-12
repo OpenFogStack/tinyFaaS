@@ -24,7 +24,7 @@ T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge
 }
 ```
 
-For a full list of publications, please see [our website](https://www.mcc.tu-berlin.de/menue/forschung/publikationen/parameter/en/).
+For a full list of publications, please see [our website](https://www.tu.berlin/en/mcc/research/publications).
 
 ### License
 
