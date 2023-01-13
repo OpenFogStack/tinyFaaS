@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package mcc.tinyfaas.api;
+package openfogstack.tinyfaas.api;
 option go_package = ".;api";
 
 // Represents a trigger node

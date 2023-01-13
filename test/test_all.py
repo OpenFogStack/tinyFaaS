@@ -116,7 +116,7 @@ class TestSieve(TinyFaaSTest):
         super(TestSieve, self).setUp()
         self.fn = TestSieve.fn
 
-    def test_invoke(self) -> None:
+    def test_invoke_http(self) -> None:
         """invoke a function"""
 
         # make a request to the function
@@ -127,7 +127,7 @@ class TestSieve(TinyFaaSTest):
 
         return
 
-    def test_invoke_async(self) -> None:
+    def test_invoke_http_async(self) -> None:
         """invoke a function async"""
 
         # make an async request to the function
@@ -142,10 +142,6 @@ class TestSieve(TinyFaaSTest):
         self.assertEqual(res.status, 202)
 
         return
-
-    def test_invoke_grpc(self) -> None:
-        """invoke a function"""
-        pass
 
     def test_invoke_coap(self) -> None:
         """invoke a function with CoAP"""
@@ -162,6 +158,7 @@ class TestSieve(TinyFaaSTest):
         async def main() -> aiocoap.Message:
             protocol = await aiocoap.Context.create_client_context()
             response = await protocol.request(msg).response
+            await protocol.shutdown()
             return response
 
         response = asyncio.run(main())
@@ -170,6 +167,26 @@ class TestSieve(TinyFaaSTest):
         self.assertEqual(response.code, aiocoap.CONTENT)
 
         return
+
+    def test_invoke_grpc(self) -> None:
+        """invoke a function"""
+        try:
+            import grpc
+        except ImportError:
+            self.skipTest("grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt")
+            return
+
+        sys.path.append("../src/reverse-proxy/api")
+
+        import api_pb2
+        import api_pb2_grpc
+
+        with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
+            stub = api_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(api_pb2.Data(functionIdentifier=self.fn))
+
+        self.assertIsNotNone(response)
+        self.assertIsNot(response.response, "")
 
 class TestEcho(TinyFaaSTest):
     fn = ""
@@ -183,7 +200,7 @@ class TestEcho(TinyFaaSTest):
         super(TestEcho, self).setUp()
         self.fn = TestEcho.fn
 
-    def test_invoke(self) -> None:
+    def test_invoke_http(self) -> None:
         """invoke a function"""
 
         # make a request to the function with a payload
@@ -201,6 +218,58 @@ class TestEcho(TinyFaaSTest):
         self.assertEqual(res.read().decode('utf-8'), payload)
 
         return
+
+    def test_invoke_coap(self) -> None:
+        """invoke a function with CoAP"""
+
+        try:
+            import asyncio
+            import aiocoap
+        except ImportError:
+            self.skipTest("aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt")
+            return
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        msg = aiocoap.Message(code=aiocoap.GET, uri=f"coap://{self.host}:{self.coap_port}/{self.fn}", payload=payload.encode('utf-8'))
+
+        async def main() -> aiocoap.Message:
+            protocol = await aiocoap.Context.create_client_context()
+            response = await protocol.request(msg).response
+            await protocol.shutdown()
+            return response
+
+        response = asyncio.run(main())
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.code, aiocoap.CONTENT)
+        self.assertEqual(response.payload.decode('utf-8'), payload)
+
+        return
+
+    def test_invoke_grpc(self) -> None:
+        """invoke a function"""
+        try:
+            import grpc
+        except ImportError:
+            self.skipTest("grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt")
+            return
+
+        sys.path.append("../src/reverse-proxy/api")
+
+        import api_pb2
+        import api_pb2_grpc
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
+            stub = api_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(api_pb2.Data(functionIdentifier=self.fn, data=payload))
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.response, payload)
 
 class TestBinary(TinyFaaSTest):
     fn = ""
@@ -214,7 +283,7 @@ class TestBinary(TinyFaaSTest):
         super(TestBinary, self).setUp()
         self.fn = TestBinary.fn
 
-    def test_invoke(self) -> None:
+    def test_invoke_http(self) -> None:
         """invoke a function"""
 
         # make a request to the function with a payload
@@ -232,6 +301,58 @@ class TestBinary(TinyFaaSTest):
         self.assertEqual(res.read().decode('utf-8'), payload)
 
         return
+
+    def test_invoke_coap(self) -> None:
+        """invoke a function with CoAP"""
+
+        try:
+            import asyncio
+            import aiocoap
+        except ImportError:
+            self.skipTest("aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt")
+            return
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        msg = aiocoap.Message(code=aiocoap.GET, uri=f"coap://{self.host}:{self.coap_port}/{self.fn}", payload=payload.encode('utf-8'))
+
+        async def main() -> aiocoap.Message:
+            protocol = await aiocoap.Context.create_client_context()
+            response = await protocol.request(msg).response
+            await protocol.shutdown()
+            return response
+
+        response = asyncio.run(main())
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.code, aiocoap.CONTENT)
+        self.assertEqual(response.payload.decode('utf-8'), payload)
+
+        return
+
+    def test_invoke_grpc(self) -> None:
+        """invoke a function"""
+        try:
+            import grpc
+        except ImportError:
+            self.skipTest("grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt")
+            return
+
+        sys.path.append("../src/reverse-proxy/api")
+
+        import api_pb2
+        import api_pb2_grpc
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
+            stub = api_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(api_pb2.Data(functionIdentifier=self.fn, data=payload))
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.response, payload)
 
 if __name__ == "__main__":
 
