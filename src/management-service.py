@@ -28,13 +28,13 @@ management_service: ManagementService
 
 class FunctionHandler(object):
     def __init__(
-        self,
-        function_name: str,
-        function_resource: str,
-        function_env: str,
-        function_threads: int,
-        zip_hash: str,
-        file_path: str
+            self,
+            function_name: str,
+            function_resource: str,
+            function_env: str,
+            function_threads: int,
+            zip_hash: str,
+            file_path: str
         ):
 
         logging.debug(f'creating new function handler for {function_name}')
