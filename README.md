@@ -85,7 +85,7 @@ Additionally, we provide scripts to read logs from your function and to wipe all
 
 This tinyFaaS prototype only supports functions written for NodeJS 10, Python 3.9, and binary functions.
 
-#### NodeJS 10
+#### NodeJS 20
 
 Your function must be supplied as a Node module with the name `fn` that exports a single function that takes the `req` and `res` parameters for request and response, respectively.
 `res` supports the `send()` function that has one parameter, a string that is passed to the client as-is.

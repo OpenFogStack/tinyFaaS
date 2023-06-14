@@ -1,5 +1,5 @@
 #https://nodejs.org/en/docs/guides/nodejs-docker-webapp/
-FROM node:10-alpine@sha256:dc98dac24efd4254f75976c40bce46944697a110d06ce7fa47e7268470cf2e28
+FROM node:20-alpine
 
 EXPOSE 8000
 
