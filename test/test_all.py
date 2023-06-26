@@ -11,6 +11,7 @@ import urllib.request
 
 connection: typing.Dict[str, typing.Union[str, int]] = {}
 
+
 def setUpModule() -> None:
     """start tinyfaas instance"""
 
@@ -43,7 +44,9 @@ def setUpModule() -> None:
     # wait for tinyfaas to start
     while True:
         try:
-            urllib.request.urlopen(f"http://{connection['host']}:{connection['management_port']}/")
+            urllib.request.urlopen(
+                f"http://{connection['host']}:{connection['management_port']}/"
+            )
             break
         except urllib.error.HTTPError:
             break
@@ -52,7 +55,9 @@ def setUpModule() -> None:
     # wait for tinyfaas to start
     while True:
         try:
-            urllib.request.urlopen(f"http://{connection['host']}:{connection['http_port']}/")
+            urllib.request.urlopen(
+                f"http://{connection['host']}:{connection['http_port']}/"
+            )
             break
         except urllib.error.HTTPError:
             break
@@ -61,12 +66,15 @@ def setUpModule() -> None:
 
     return
 
+
 def tearDownModule() -> None:
     """stop tinyfaas instance"""
 
     # call wipe-functions.sh
     try:
-        subprocess.run(["./wipe-functions.sh"], cwd="../scripts", check=True, capture_output=True)
+        subprocess.run(
+            ["./wipe-functions.sh"], cwd="../scripts", check=True, capture_output=True
+        )
     except subprocess.CalledProcessError as e:
         print(f"Failed to wipe functions:\n{e.stderr.decode('utf-8')}")
 
@@ -78,6 +86,7 @@ def tearDownModule() -> None:
 
     return
 
+
 def startFunction(folder_name: str, fn_name: str, env: str, threads: int) -> str:
     """starts a function, returns name"""
 
@@ -86,12 +95,18 @@ def startFunction(folder_name: str, fn_name: str, env: str, threads: int) -> str
 
     # use the upload.sh script
     try:
-        subprocess.run(["./upload.sh", folder_name, fn_name, env, str(threads)], cwd="../scripts", check=True, capture_output=True)
+        subprocess.run(
+            ["./upload.sh", folder_name, fn_name, env, str(threads)],
+            cwd="../scripts",
+            check=True,
+            capture_output=True,
+        )
     except subprocess.CalledProcessError as e:
         print(f"Failed to upload function {fn_name}:\n{e.stderr.decode('utf-8')}")
         raise e
 
     return fn_name
+
 
 class TinyFaaSTest(unittest.TestCase):
     @classmethod
@@ -105,12 +120,13 @@ class TinyFaaSTest(unittest.TestCase):
         self.grpc_port = connection["grpc_port"]
         self.coap_port = connection["coap_port"]
 
+
 class TestSieve(TinyFaaSTest):
     fn = ""
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.fn = startFunction("./fns/sieve-of-erasthostenes", "sieve", "nodejs", 1)
+        cls.fn = startFunction("./fns/sieve-of-eratosthenes", "sieve", "nodejs", 1)
 
     def setUp(self) -> None:
         super(TestSieve, self).setUp()
@@ -120,7 +136,9 @@ class TestSieve(TinyFaaSTest):
         """invoke a function"""
 
         # make a request to the function
-        res = urllib.request.urlopen(f"http://{self.host}:{self.http_port}/{self.fn}", timeout=10)
+        res = urllib.request.urlopen(
+            f"http://{self.host}:{self.http_port}/{self.fn}", timeout=10
+        )
 
         # check the response
         self.assertEqual(res.status, 200)
@@ -133,7 +151,7 @@ class TestSieve(TinyFaaSTest):
         # make an async request to the function
         req = urllib.request.Request(
             f"http://{self.host}:{self.http_port}/{self.fn}",
-            headers={'X-tinyFaaS-Async': 'true'}
+            headers={"X-tinyFaaS-Async": "true"},
         )
 
         res = urllib.request.urlopen(req, timeout=10)
@@ -150,10 +168,14 @@ class TestSieve(TinyFaaSTest):
             import asyncio
             import aiocoap
         except ImportError:
-            self.skipTest("aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt")
+            self.skipTest(
+                "aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt"
+            )
             return
 
-        msg = aiocoap.Message(code=aiocoap.GET, uri=f"coap://{self.host}:{self.coap_port}/{self.fn}")
+        msg = aiocoap.Message(
+            code=aiocoap.GET, uri=f"coap://{self.host}:{self.coap_port}/{self.fn}"
+        )
 
         async def main() -> aiocoap.Message:
             protocol = await aiocoap.Context.create_client_context()
@@ -173,7 +195,9 @@ class TestSieve(TinyFaaSTest):
         try:
             import grpc
         except ImportError:
-            self.skipTest("grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt")
+            self.skipTest(
+                "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
+            )
             return
 
         sys.path.append("../src/reverse-proxy/api")
@@ -187,6 +211,7 @@ class TestSieve(TinyFaaSTest):
 
         self.assertIsNotNone(response)
         self.assertIsNot(response.response, "")
+
 
 class TestEcho(TinyFaaSTest):
     fn = ""
@@ -208,14 +233,14 @@ class TestEcho(TinyFaaSTest):
 
         req = urllib.request.Request(
             f"http://{self.host}:{self.http_port}/{self.fn}",
-            data=payload.encode('utf-8'),
+            data=payload.encode("utf-8"),
         )
 
         res = urllib.request.urlopen(req, timeout=10)
 
         # check the response
         self.assertEqual(res.status, 200)
-        self.assertEqual(res.read().decode('utf-8'), payload)
+        self.assertEqual(res.read().decode("utf-8"), payload)
 
         return
 
@@ -226,13 +251,19 @@ class TestEcho(TinyFaaSTest):
             import asyncio
             import aiocoap
         except ImportError:
-            self.skipTest("aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt")
+            self.skipTest(
+                "aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt"
+            )
             return
 
         # make a request to the function with a payload
         payload = "Hello World!"
 
-        msg = aiocoap.Message(code=aiocoap.GET, uri=f"coap://{self.host}:{self.coap_port}/{self.fn}", payload=payload.encode('utf-8'))
+        msg = aiocoap.Message(
+            code=aiocoap.GET,
+            uri=f"coap://{self.host}:{self.coap_port}/{self.fn}",
+            payload=payload.encode("utf-8"),
+        )
 
         async def main() -> aiocoap.Message:
             protocol = await aiocoap.Context.create_client_context()
@@ -244,7 +275,7 @@ class TestEcho(TinyFaaSTest):
 
         self.assertIsNotNone(response)
         self.assertEqual(response.code, aiocoap.CONTENT)
-        self.assertEqual(response.payload.decode('utf-8'), payload)
+        self.assertEqual(response.payload.decode("utf-8"), payload)
 
         return
 
@@ -253,7 +284,9 @@ class TestEcho(TinyFaaSTest):
         try:
             import grpc
         except ImportError:
-            self.skipTest("grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt")
+            self.skipTest(
+                "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
+            )
             return
 
         sys.path.append("../src/reverse-proxy/api")
@@ -266,10 +299,13 @@ class TestEcho(TinyFaaSTest):
 
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
             stub = api_pb2_grpc.TinyFaaSStub(channel)
-            response = stub.Request(api_pb2.Data(functionIdentifier=self.fn, data=payload))
+            response = stub.Request(
+                api_pb2.Data(functionIdentifier=self.fn, data=payload)
+            )
 
         self.assertIsNotNone(response)
         self.assertEqual(response.response, payload)
+
 
 class TestBinary(TinyFaaSTest):
     fn = ""
@@ -291,14 +327,14 @@ class TestBinary(TinyFaaSTest):
 
         req = urllib.request.Request(
             f"http://{self.host}:{self.http_port}/{self.fn}",
-            data=payload.encode('utf-8'),
+            data=payload.encode("utf-8"),
         )
 
         res = urllib.request.urlopen(req, timeout=10)
 
         # check the response
         self.assertEqual(res.status, 200)
-        self.assertEqual(res.read().decode('utf-8'), payload)
+        self.assertEqual(res.read().decode("utf-8"), payload)
 
         return
 
@@ -309,13 +345,19 @@ class TestBinary(TinyFaaSTest):
             import asyncio
             import aiocoap
         except ImportError:
-            self.skipTest("aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt")
+            self.skipTest(
+                "aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt"
+            )
             return
 
         # make a request to the function with a payload
         payload = "Hello World!"
 
-        msg = aiocoap.Message(code=aiocoap.GET, uri=f"coap://{self.host}:{self.coap_port}/{self.fn}", payload=payload.encode('utf-8'))
+        msg = aiocoap.Message(
+            code=aiocoap.GET,
+            uri=f"coap://{self.host}:{self.coap_port}/{self.fn}",
+            payload=payload.encode("utf-8"),
+        )
 
         async def main() -> aiocoap.Message:
             protocol = await aiocoap.Context.create_client_context()
@@ -327,7 +369,7 @@ class TestBinary(TinyFaaSTest):
 
         self.assertIsNotNone(response)
         self.assertEqual(response.code, aiocoap.CONTENT)
-        self.assertEqual(response.payload.decode('utf-8'), payload)
+        self.assertEqual(response.payload.decode("utf-8"), payload)
 
         return
 
@@ -336,7 +378,9 @@ class TestBinary(TinyFaaSTest):
         try:
             import grpc
         except ImportError:
-            self.skipTest("grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt")
+            self.skipTest(
+                "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
+            )
             return
 
         sys.path.append("../src/reverse-proxy/api")
@@ -349,13 +393,15 @@ class TestBinary(TinyFaaSTest):
 
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
             stub = api_pb2_grpc.TinyFaaSStub(channel)
-            response = stub.Request(api_pb2.Data(functionIdentifier=self.fn, data=payload))
+            response = stub.Request(
+                api_pb2.Data(functionIdentifier=self.fn, data=payload)
+            )
 
         self.assertIsNotNone(response)
         self.assertEqual(response.response, payload)
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     # check that make is installed
     try:
         subprocess.run(["make", "--version"], check=True, capture_output=True)
@@ -370,4 +416,4 @@ if __name__ == "__main__":
         print(f"Docker is not installed or not working:\n{e.stderr.decode('utf-8')}")
         sys.exit(1)
 
-    unittest.main() # run all tests
+    unittest.main()  # run all tests
