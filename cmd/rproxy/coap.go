@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -11,7 +11,7 @@ import (
 	"github.com/pfandzelter/go-coap"
 )
 
-func startCoAPServer(f *functions) {
+func startCoAPServer(f *functions, listenAddr string) {
 
 	h := coap.FuncHandler(
 		func(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
@@ -34,8 +34,10 @@ func startCoAPServer(f *functions) {
 			if !ok {
 				log.Printf("Function not found: %s", p)
 				return &coap.Message{
-					Code: coap.NotFound,
-					Type: coap.Acknowledgement,
+					Code:      coap.NotFound,
+					Type:      coap.Acknowledgement,
+					MessageID: m.MessageID,
+					Token:     m.Token,
 				}
 			}
 
@@ -45,20 +47,25 @@ func startCoAPServer(f *functions) {
 			resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(req_body))
 
 			if err != nil {
+				log.Printf("Error calling function: %s", err)
 				return &coap.Message{
-					Type: coap.Acknowledgement,
-					Code: coap.InternalServerError,
+					Type:      coap.Acknowledgement,
+					Code:      coap.InternalServerError,
+					MessageID: m.MessageID,
+					Token:     m.Token,
 				}
 			}
 
 			defer resp.Body.Close()
-			res_body, err := ioutil.ReadAll(resp.Body)
+			res_body, err := io.ReadAll(resp.Body)
 
 			if err != nil {
 				log.Printf("Error reading body: %s", err)
 				return &coap.Message{
-					Type: coap.Acknowledgement,
-					Code: coap.InternalServerError,
+					Type:      coap.Acknowledgement,
+					Code:      coap.InternalServerError,
+					MessageID: m.MessageID,
+					Token:     m.Token,
 				}
 			}
 
@@ -77,5 +84,5 @@ func startCoAPServer(f *functions) {
 			return res
 		})
 
-	coap.ListenAndServe("udp", ":6000", h)
+	coap.ListenAndServe("udp", listenAddr, h)
 }

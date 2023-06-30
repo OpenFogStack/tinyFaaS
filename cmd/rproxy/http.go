@@ -2,13 +2,13 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
 )
 
-func startHTTPServer(f *functions) {
+func startHTTPServer(f *functions, listenAddr string) {
 
 	mux := http.NewServeMux()
 
@@ -22,17 +22,23 @@ func startHTTPServer(f *functions) {
 			p = p[1:]
 		}
 
+		log.Printf("have request for path: %s", p)
+
 		handler, ok := f.hosts[p]
 
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
-			log.Printf("Function not found: %s", p)
+			log.Printf("function not found: %s", p)
 			return
 		}
 
+		log.Printf("have handler: %s", handler)
+
 		async := r.Header.Get("X-tinyFaaS-Async") != ""
 
-		req_body, err := ioutil.ReadAll(r.Body)
+		log.Printf("is async: %v", async)
+
+		req_body, err := io.ReadAll(r.Body)
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -41,6 +47,7 @@ func startHTTPServer(f *functions) {
 		}
 
 		if async {
+			log.Printf("async request accepted")
 			w.WriteHeader(http.StatusAccepted)
 			go func() {
 				resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(req_body))
@@ -50,11 +57,14 @@ func startHTTPServer(f *functions) {
 				}
 
 				resp.Body.Close()
+
+				log.Printf("async request finished")
 			}()
 			return
 		}
 
 		// call function and return results
+		log.Printf("sync request starting")
 		resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(req_body))
 
 		if err != nil {
@@ -63,8 +73,10 @@ func startHTTPServer(f *functions) {
 			return
 		}
 
+		log.Printf("sync request finished")
+
 		defer resp.Body.Close()
-		res_body, err := ioutil.ReadAll(resp.Body)
+		res_body, err := io.ReadAll(resp.Body)
 
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -72,9 +84,18 @@ func startHTTPServer(f *functions) {
 			return
 		}
 
-		w.Write(res_body)
+		log.Printf("have response for sync request: %s", res_body)
 
+		w.Write(res_body)
 	})
 
-	http.ListenAndServe(":7000", mux)
+	log.Printf("Starting HTTP server on %s", listenAddr)
+	err := http.ListenAndServe(listenAddr, mux)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Print("HTTP server stopped")
+
 }
