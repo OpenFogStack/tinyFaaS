@@ -10,4 +10,4 @@ then
     exit
 fi
 
-curl http://localhost:8080/delete --data "$1"
+curl http://localhost:8080/delete --data "{\"name\": \"$1\"}"
