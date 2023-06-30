@@ -15,6 +15,6 @@ EXPOSE 6000/udp
 EXPOSE 7000/tcp
 EXPOSE 8000/tcp
 
-COPY --from=builder /go/bin/reverse-proxy app
+COPY --from=builder /go/bin/rproxy rproxy
 
-ENTRYPOINT [ "./app" ]
+ENTRYPOINT [ "./rproxy" ]

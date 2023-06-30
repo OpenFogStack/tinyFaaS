@@ -3,43 +3,57 @@
 import unittest
 
 import os
+import os.path as path
+import signal
 import subprocess
 import sys
 import typing
 import urllib.error
 import urllib.request
 
-connection: typing.Dict[str, typing.Union[str, int]] = {}
+connection: typing.Dict[str, typing.Union[str, int]] = {
+    "host": "localhost",
+    "management_port": 8080,
+    "http_port": 8000,
+    "grpc_port": 9000,
+    "coap_port": 5683,
+}
+tf_process: typing.Optional[subprocess.Popen] = None  # type: ignore
+src_path = ".."
+fn_path = path.join(".", "fns")
+script_path = path.join(src_path, "scripts")
+grpc_api_path = path.join(src_path, "cmd", "rproxy", "api")
 
 
 def setUpModule() -> None:
     """start tinyfaas instance"""
-
     # call make clean
     try:
-        subprocess.run(["make", "clean"], cwd="..", check=True, capture_output=True)
+        subprocess.run(["make", "clean"], cwd=src_path, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to clean up:\n{e.stderr.decode('utf-8')}")
 
-    # call make prepare
+    # start tinyfaas
     try:
-        subprocess.run(["make", "prepare"], cwd="..", check=True, capture_output=True)
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to prepare:\n{e.stderr.decode('utf-8')}")
+        env = os.environ.copy()
+        env["HTTP_PORT"] = str(connection["http_port"])
+        env["GRPC_PORT"] = str(connection["grpc_port"])
+        env["COAP_PORT"] = str(connection["coap_port"])
 
-    # call make start
-    try:
-        subprocess.run(["make", "start"], cwd="..", check=True, capture_output=True)
+        global tf_process
+
+        # os.makedirs(path.join(src_path, "tmp"), exist_ok=True)
+        with open(path.join(".", "tf_test.out"), "w") as f:
+            tf_process = subprocess.Popen(
+                ["./manager"],
+                cwd=src_path,
+                env=env,
+                stdout=f,
+                stderr=f,
+            )
+
     except subprocess.CalledProcessError as e:
         print(f"Failed to start:\n{e.stderr.decode('utf-8')}")
-
-    # set up connection
-    global connection
-    connection["host"] = "localhost"
-    connection["management_port"] = 8080
-    connection["http_port"] = 80
-    connection["grpc_port"] = 8000
-    connection["coap_port"] = 5683
 
     # wait for tinyfaas to start
     while True:
@@ -73,14 +87,28 @@ def tearDownModule() -> None:
     # call wipe-functions.sh
     try:
         subprocess.run(
-            ["./wipe-functions.sh"], cwd="../scripts", check=True, capture_output=True
+            ["./wipe-functions.sh"], cwd=script_path, check=True, capture_output=True
         )
     except subprocess.CalledProcessError as e:
         print(f"Failed to wipe functions:\n{e.stderr.decode('utf-8')}")
 
+    # stop tinyfaas
+    # with open(path.join(src_path, "tmp", "tf_test.out"), "w") as f:
+    #     f.write(tf_process.stdout.read())
+    #     f.write(tf_process.stderr.read())
+
+    try:
+        tf_process.send_signal(signal.SIGINT)  # type: ignore
+        tf_process.wait(timeout=1)  # type: ignore
+        tf_process.terminate()  # type: ignore
+    except subprocess.CalledProcessError as e:
+        print(f"Failed to stop:\n{e.stderr.decode('utf-8')}")
+    except subprocess.TimeoutExpired:
+        print("Failed to stop: Timeout expired")
+
     # call make clean
     try:
-        subprocess.run(["make", "clean"], cwd="..", check=True, capture_output=True)
+        subprocess.run(["make", "clean"], cwd=src_path, check=True, capture_output=True)
     except subprocess.CalledProcessError as e:
         print(f"Failed to clean up:\n{e.stderr.decode('utf-8')}")
 
@@ -97,7 +125,7 @@ def startFunction(folder_name: str, fn_name: str, env: str, threads: int) -> str
     try:
         subprocess.run(
             ["./upload.sh", folder_name, fn_name, env, str(threads)],
-            cwd="../scripts",
+            cwd=script_path,
             check=True,
             capture_output=True,
         )
@@ -126,7 +154,9 @@ class TestSieve(TinyFaaSTest):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.fn = startFunction("./fns/sieve-of-eratosthenes", "sieve", "nodejs", 1)
+        cls.fn = startFunction(
+            path.join(fn_path, "sieve-of-eratosthenes"), "sieve", "nodejs", 1
+        )
 
     def setUp(self) -> None:
         super(TestSieve, self).setUp()
@@ -200,7 +230,7 @@ class TestSieve(TinyFaaSTest):
             )
             return
 
-        sys.path.append("../src/reverse-proxy/api")
+        sys.path.append(grpc_api_path)
 
         import api_pb2
         import api_pb2_grpc
@@ -219,7 +249,7 @@ class TestEcho(TinyFaaSTest):
     @classmethod
     def setUpClass(cls) -> None:
         super(TestEcho, cls).setUpClass()
-        cls.fn = startFunction("./fns/echo", "echo", "python3", 1)
+        cls.fn = startFunction(path.join(fn_path, "echo"), "echo", "python3", 1)
 
     def setUp(self) -> None:
         super(TestEcho, self).setUp()
@@ -289,7 +319,7 @@ class TestEcho(TinyFaaSTest):
             )
             return
 
-        sys.path.append("../src/reverse-proxy/api")
+        sys.path.append(grpc_api_path)
 
         import api_pb2
         import api_pb2_grpc
@@ -313,7 +343,9 @@ class TestBinary(TinyFaaSTest):
     @classmethod
     def setUpClass(cls) -> None:
         super(TestBinary, cls).setUpClass()
-        cls.fn = startFunction("./fns/echo-binary", "echo-binary", "binary", 1)
+        cls.fn = startFunction(
+            path.join(fn_path, "echo-binary"), "echo-binary", "binary", 1
+        )
 
     def setUp(self) -> None:
         super(TestBinary, self).setUp()
@@ -383,7 +415,7 @@ class TestBinary(TinyFaaSTest):
             )
             return
 
-        sys.path.append("../src/reverse-proxy/api")
+        sys.path.append(grpc_api_path)
 
         import api_pb2
         import api_pb2_grpc
