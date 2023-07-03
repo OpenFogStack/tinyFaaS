@@ -8,13 +8,12 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
-)
 
-type functions struct {
-	hosts map[string][]string
-	sync.RWMutex
-}
+	"github.com/pfandzelter/tinyFaaS/pkg/rproxy"
+	"github.com/pfandzelter/tinyFaaS/pkg/tfcoap"
+	"github.com/pfandzelter/tinyFaaS/pkg/tfgrpc"
+	"github.com/pfandzelter/tinyFaaS/pkg/tfhttp"
+)
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
@@ -48,38 +47,36 @@ func main() {
 		return // nothing to do
 	}
 
-	f := functions{
-		hosts: make(map[string][]string),
-	}
+	r := rproxy.New()
 
 	// CoAP
 	if listenAddr, ok := listenAddrs["coap"]; ok {
 		log.Printf("starting coap server on %s", listenAddr)
-		go startCoAPServer(&f, listenAddr)
+		go tfcoap.Start(r, listenAddr)
 	}
 	// HTTP
 	if listenAddr, ok := listenAddrs["http"]; ok {
 		log.Printf("starting http server on %s", listenAddr)
-		go startHTTPServer(&f, listenAddr)
+		go tfhttp.Start(r, listenAddr)
 	}
 	// GRPC
 	if listenAddr, ok := listenAddrs["grpc"]; ok {
 		log.Printf("starting grpc server on %s", listenAddr)
-		go startGRPCServer(&f, listenAddr)
+		go tfgrpc.Start(r, listenAddr)
 	}
 
 	server := http.NewServeMux()
 
-	server.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "POST" {
+	server.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != "POST" {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 
-		log.Printf("have request: %+v", r)
+		log.Printf("have request: %+v", req)
 
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(r.Body)
+		buf.ReadFrom(req.Body)
 		newStr := buf.String()
 
 		log.Printf("have body: %s", newStr)
@@ -102,22 +99,28 @@ func main() {
 			def.FunctionResource = def.FunctionResource[1:]
 		}
 
-		f.Lock()
-		defer f.Unlock()
 		if len(def.FunctionContainers) > 0 {
+			// "ips" field not empty: add function
 			log.Printf("adding %s", def.FunctionResource)
-			f.hosts[def.FunctionResource] = def.FunctionContainers
+			err = r.Add(def.FunctionResource, def.FunctionContainers)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("OK"))
+			return
 		} else {
-			_, ok := f.hosts[def.FunctionResource]
-			if ok {
-				log.Printf("deleting %s", def.FunctionResource)
-				delete(f.hosts, def.FunctionResource)
+
+			log.Printf("deleting %s", def.FunctionResource)
+			err = r.Del(def.FunctionResource)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+
 			}
 		}
-
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
 	})
 
 	log.Printf("listening on %s", rproxyListenAddress)
