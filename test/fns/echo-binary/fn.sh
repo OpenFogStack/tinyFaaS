@@ -5,4 +5,3 @@ INPUT=$(cat)
 
 # echo the variable to stdout
 echo -n "$INPUT"
-
