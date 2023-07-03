@@ -4,8 +4,8 @@ import (
 	"log"
 	"net"
 
+	"github.com/OpenFogStack/tinyFaaS/pkg/rproxy"
 	"github.com/pfandzelter/go-coap"
-	"github.com/pfandzelter/tinyFaaS/pkg/rproxy"
 )
 
 func Start(r *rproxy.RProxy, listenAddr string) {

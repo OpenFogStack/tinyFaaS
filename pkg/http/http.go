@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/pfandzelter/tinyFaaS/pkg/rproxy"
+	"github.com/OpenFogStack/tinyFaaS/pkg/rproxy"
 )
 
 func Start(r *rproxy.RProxy, listenAddr string) {
