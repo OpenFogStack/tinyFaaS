@@ -22,7 +22,7 @@ tf_process: typing.Optional[subprocess.Popen] = None  # type: ignore
 src_path = ".."
 fn_path = path.join(".", "fns")
 script_path = path.join(src_path, "scripts")
-grpc_api_path = path.join(src_path, "cmd", "rproxy", "api")
+grpc_api_path = path.join(src_path, "pkg", "tfgrpc", "api")
 
 
 def setUpModule() -> None:

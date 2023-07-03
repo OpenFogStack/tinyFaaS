@@ -70,12 +70,13 @@ func main() {
 	log.Println("starting manager")
 
 	// setting backend to docker
+	backend := "docker"
 	ms := manager.New(
 		uuid.New().String(),
 		RProxyListenAddress,
 		ports,
 		RProxyConfigPort,
-		"docker",
+		backend,
 	)
 
 	rproxyArgs := []string{fmt.Sprintf("%s:%d", RProxyListenAddress, RProxyConfigPort)}
