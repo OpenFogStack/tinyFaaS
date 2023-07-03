@@ -4,7 +4,7 @@ all: build clean start
 
 build: manager rproxy
 
-manager: ./cmd/manager/main.go ./cmd/manager/util.go
+manager: ./cmd/manager/main.go
 	@go build -o ./manager ./cmd/manager/*.go
 
 rproxy: ./cmd/rproxy/main.go
