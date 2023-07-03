@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -20,7 +21,8 @@ import (
 )
 
 const (
-	TmpDir = "./tmp"
+	TmpDir           = "./tmp"
+	containerTimeout = 1
 )
 
 type dockerHandler struct {
@@ -198,18 +200,26 @@ func (dh *dockerHandler) Start() error {
 
 	// start containers
 	// docker start <container>
-	for _, container := range dh.thisContainers {
-		err := client.ContainerStart(
-			context.Background(),
-			container,
-			types.ContainerStartOptions{},
-		)
-		if err != nil {
-			return err
-		}
 
-		log.Println("started container", container)
+	wg := sync.WaitGroup{}
+	for _, container := range dh.thisContainers {
+		wg.Add(1)
+		go func(c string) {
+			err := client.ContainerStart(
+				context.Background(),
+				c,
+				types.ContainerStartOptions{},
+			)
+			wg.Done()
+			if err != nil {
+				log.Printf("error starting container %s: %s", c, err)
+				return
+			}
+
+			log.Println("started container", c)
+		}(container)
 	}
+	wg.Wait()
 
 	// get container IPs
 	// docker inspect <container>
@@ -275,40 +285,44 @@ func (dh *dockerHandler) Destroy() error {
 
 	log.Printf("fh: %+v", dh)
 
-	// stop containers
-	// docker stop <container>
+	wg := sync.WaitGroup{}
 	log.Printf("stopping containers: %v", dh.thisContainers)
 	for _, c := range dh.thisContainers {
-		log.Println("stopping container", c)
+		log.Println("removing container", c)
 
-		err := client.ContainerStop(
-			context.Background(),
-			c,
-			container.StopOptions{},
-		)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func(c string) {
+			log.Println("stopping container", c)
 
-		log.Println("stopped container", c)
+			timeout := 1 // seconds
+
+			err := client.ContainerStop(
+				context.Background(),
+				c,
+				container.StopOptions{
+					Timeout: &timeout,
+				},
+			)
+			if err != nil {
+				log.Printf("error stopping container %s: %s", c, err)
+			}
+
+			log.Println("stopped container", c)
+
+			err = client.ContainerRemove(
+				context.Background(),
+				c,
+				types.ContainerRemoveOptions{},
+			)
+			wg.Done()
+			if err != nil {
+				log.Printf("error removing container %s: %s", c, err)
+			}
+		}(c)
+
+		log.Println("removed container", c)
 	}
-
-	// remove containers
-	// docker rm <container>
-	for _, container := range dh.thisContainers {
-		log.Println("removing container", container)
-
-		err := client.ContainerRemove(
-			context.Background(),
-			container,
-			types.ContainerRemoveOptions{},
-		)
-		if err != nil {
-			return err
-		}
-
-		log.Println("removed container", container)
-	}
+	wg.Wait()
 
 	// remove network
 	// docker network rm <network>
