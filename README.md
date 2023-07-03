@@ -145,7 +145,8 @@ curl --header "X-tinyFaaS-Async: true" "http://localhost:8000/sieve"
 
 #### gRPC
 
-To use the gRPC endpoint, compile the `api` protocol buffer (included in [`./cmd/rproxy/api`](./cmd/rproxy/api)) and import it into your application.
+To use the gRPC endpoint, compile the `tinyfaas` protocol buffer (included in [`./pkg/grpc/tinyfaas`](./pkg/grpc/tinyfaas)) for your programming language and import it into your application.
+We already provide compiled versions for Go and Python in that directory.
 Specify the tinyFaaS host and port (default is `9000`) for the GRPC endpoint and use the `Request` function with the `functionIdentifier` being your function's name and the `data` field including data in any form you want.
 
 ### Removing tinyFaaS

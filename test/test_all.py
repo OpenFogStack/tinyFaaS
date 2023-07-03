@@ -18,11 +18,12 @@ connection: typing.Dict[str, typing.Union[str, int]] = {
     "grpc_port": 9000,
     "coap_port": 5683,
 }
+
 tf_process: typing.Optional[subprocess.Popen] = None  # type: ignore
 src_path = ".."
 fn_path = path.join(".", "fns")
 script_path = path.join(src_path, "scripts")
-grpc_api_path = path.join(src_path, "pkg", "tfgrpc", "api")
+grpc_api_path = path.join(src_path, "pkg", "grpc", "tinyfaas")
 
 
 def setUpModule() -> None:
@@ -232,12 +233,12 @@ class TestSieve(TinyFaaSTest):
 
         sys.path.append(grpc_api_path)
 
-        import api_pb2
-        import api_pb2_grpc
+        import tinyfaas_pb2
+        import tinyfaas_pb2_grpc
 
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
-            stub = api_pb2_grpc.TinyFaaSStub(channel)
-            response = stub.Request(api_pb2.Data(functionIdentifier=self.fn))
+            stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(tinyfaas_pb2.Data(functionIdentifier=self.fn))
 
         self.assertIsNotNone(response)
         self.assertIsNot(response.response, "")
@@ -321,16 +322,16 @@ class TestEcho(TinyFaaSTest):
 
         sys.path.append(grpc_api_path)
 
-        import api_pb2
-        import api_pb2_grpc
+        import tinyfaas_pb2
+        import tinyfaas_pb2_grpc
 
         # make a request to the function with a payload
         payload = "Hello World!"
 
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
-            stub = api_pb2_grpc.TinyFaaSStub(channel)
+            stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
             response = stub.Request(
-                api_pb2.Data(functionIdentifier=self.fn, data=payload)
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload)
             )
 
         self.assertIsNotNone(response)
@@ -417,16 +418,16 @@ class TestBinary(TinyFaaSTest):
 
         sys.path.append(grpc_api_path)
 
-        import api_pb2
-        import api_pb2_grpc
+        import tinyfaas_pb2
+        import tinyfaas_pb2_grpc
 
         # make a request to the function with a payload
         payload = "Hello World!"
 
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
-            stub = api_pb2_grpc.TinyFaaSStub(channel)
+            stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
             response = stub.Request(
-                api_pb2.Data(functionIdentifier=self.fn, data=payload)
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload)
             )
 
         self.assertIsNotNone(response)
@@ -447,5 +448,18 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as e:
         print(f"Docker is not installed or not working:\n{e.stderr.decode('utf-8')}")
         sys.exit(1)
+
+    # check that everything is built
+    try:
+        os.stat(path.join(src_path, "manager"))
+    except subprocess.CalledProcessError as e:
+        try:
+            print("Building...")
+            subprocess.run(
+                ["make", "build"], cwd=src_path, check=True, capture_output=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to build:\n{e.stderr.decode('utf-8')}")
+            sys.exit(1)
 
     unittest.main()  # run all tests

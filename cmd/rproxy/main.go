@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pfandzelter/tinyFaaS/pkg/coap"
+	"github.com/pfandzelter/tinyFaaS/pkg/grpc"
+	tfhttp "github.com/pfandzelter/tinyFaaS/pkg/http"
 	"github.com/pfandzelter/tinyFaaS/pkg/rproxy"
-	"github.com/pfandzelter/tinyFaaS/pkg/tfcoap"
-	"github.com/pfandzelter/tinyFaaS/pkg/tfgrpc"
-	"github.com/pfandzelter/tinyFaaS/pkg/tfhttp"
 )
 
 func main() {
@@ -52,7 +52,7 @@ func main() {
 	// CoAP
 	if listenAddr, ok := listenAddrs["coap"]; ok {
 		log.Printf("starting coap server on %s", listenAddr)
-		go tfcoap.Start(r, listenAddr)
+		go coap.Start(r, listenAddr)
 	}
 	// HTTP
 	if listenAddr, ok := listenAddrs["http"]; ok {
@@ -62,7 +62,7 @@ func main() {
 	// GRPC
 	if listenAddr, ok := listenAddrs["grpc"]; ok {
 		log.Printf("starting grpc server on %s", listenAddr)
-		go tfgrpc.Start(r, listenAddr)
+		go grpc.Start(r, listenAddr)
 	}
 
 	server := http.NewServeMux()

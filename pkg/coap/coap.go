@@ -1,4 +1,4 @@
-package tfcoap
+package coap
 
 import (
 	"log"
