@@ -1,5 +1,5 @@
 PROJECT_NAME := "tinyFaaS"
-PKG := "github.com/pfandzelter/$(PROJECT_NAME)"
+PKG := "github.com/OpenFogStack/$(PROJECT_NAME)"
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v /ext/ | grep -v _test.go)
 
 .PHONY: all build start clean

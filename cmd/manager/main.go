@@ -11,8 +11,8 @@ import (
 	"os/signal"
 	"strconv"
 
+	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
 	"github.com/google/uuid"
-	"github.com/pfandzelter/tinyFaaS/pkg/manager"
 )
 
 const (
