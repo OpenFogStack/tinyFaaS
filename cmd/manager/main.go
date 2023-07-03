@@ -921,6 +921,8 @@ func (ms *ManagementService) urlUploadHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// reading body to memory
+	// not the smartest thing
 	zip, err := io.ReadAll(resp.Body)
 
 	if err != nil {
