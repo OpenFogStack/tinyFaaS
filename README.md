@@ -1,6 +1,6 @@
 # tinyFaaS: A Lightweight FaaS Platform for Edge Environments
 
-tinyFaaS is a lightweight FaaS platform for edge environment with a focus on performance in constrained environments.
+tinyFaaS is a lightweight FaaS (Function-as-a-Service) platform for edge environment with a focus on performance in constrained environments.
 
 ## Research
 
@@ -9,7 +9,7 @@ If you use this software in a publication, please cite it as:
 
 ### Text
 
-T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**, 2020 IEEE International Conference on Fog Computing (ICFC), Sydney, Australia, 2020, pp. 17-24, DOI: 10.1109/ICFC49376.2020.00011.
+T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge Environments**, Proceedings of the 2020 IEEE International Conference on Fog Computing (ICFC '20), Sydney, Australia, 2020, pp. 17-24, DOI: 10.1109/ICFC49376.2020.00011.
 
 ### BibTeX
 
@@ -17,10 +17,11 @@ T. Pfandzelter and D. Bermbach, **tinyFaaS: A Lightweight FaaS Platform for Edge
 @inproceedings{pfandzelter_tinyfaas:_2020,
     author = "Pfandzelter, Tobias and Bermbach, David",
     title = "tinyFaaS: A Lightweight FaaS Platform for Edge Environments",
-    booktitle = "Proceedings of the 2020 IEEE International Conference on Fog Computing (ICFC)",
+    booktitle = "Proceedings of the 2020 IEEE International Conference on Fog Computing (ICFC '20)",
     year = 2020,
     publisher = "IEEE",
-    pages = "17--24"
+    pages = "17--24",
+    doi = "10.1109/ICFC49376.2020.00011"
 }
 ```
 
@@ -45,22 +46,28 @@ Once a function is deployed to tinyFaaS, function handlers are created automatic
 
 ### Getting Started
 
-Before you get started, make sure you have Docker installed on the machine you want to run tinyFaaS on.
+Before you get started, make sure you have the following dependencies installed:
 
-To get started, simply build and start the Management Service:
+- Go (>=v1.20) to compile management service and reverse proxy
+- Docker (>=v24)
+- Make
 
-```bash
+Note that this only works on Linux.
+
+To get started, build the management service and reverse proxy:
+
+```sh
+make manager
+make rproxy
+```
+
+Then start tinyFaaS with:
+
+```sh
 make
 ```
 
-OR
-
-```bash
-docker build -t tinyfaas-mgmt ./src/
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
-```
-
-The reverse proxy will be built and started automatically.
+The reverse proxy will be started automatically.
 Please note that you cannot use tinyFaaS until the reverse proxy is running.
 
 ### Managing Functions
@@ -68,12 +75,12 @@ Please note that you cannot use tinyFaaS until the reverse proxy is running.
 To manage functions on tinyFaaS, use the included scripts included in `./src/scripts`.
 
 To upload a function, run `upload.sh {FOLDER} {NAME} {ENV} {THREADS}`, where `{FOLDER}` is the path to your function code, `{NAME}` is the name for your function, `{ENV}` is the environment you would like to use (`python3`, `nodejs`, or `binary`), and `{THREADS}` is a number specifying the number of function handlers for your function.
-For example, you might call `./scripts/upload.sh "./test/fns/sieve-of-erasthostenes" "sieve" "nodejs" 1` to upload the _sieve of Eratosthenes_ example function included in this repository.
+For example, you might call `./scripts/upload.sh "./test/fns/sieve-of-eratosthenes" "sieve" "nodejs" 1` to upload the _sieve of Eratosthenes_ example function included in this repository.
 This requires the `zip`, `base64`, and `curl` utilities.
 
 Alternatively, you can also upload functions from a zipped file available at some URL.
 Use the included script as a starting point: `uploadURL.sh {URL} {NAME} {ENV} {THREADS} {SUBFOLDER_PATH}`, where `{URL}` is the URL to a zip that has your function code, `{SUBFOLDER_PATH}` is the folder of the code within that zip (use `/` if the code is in the top-level), `{NAME}` is the name for your function, `{ENV}` is the environment, and `{THREADS}` is a number specifying the number of function handlers for your function.
-For example, you might call `uploadURL.sh "https://github.com/OpenFogStack/tinyFaas/archive/main.zip" "tinyFaaS-main/test/fns/sieve-of-erasthostenes" "sieve" "nodejs" 1` to upload the _sieve of Eratosthenes_ example function included in this repository.
+For example, you might call `uploadURL.sh "https://github.com/OpenFogStack/tinyFaas/archive/main.zip" "tinyFaaS-main/test/fns/sieve-of-eratosthenes" "sieve" "nodejs" 1` to upload the _sieve of Eratosthenes_ example function included in this repository.
 
 To get a list of existing functions, run `list.sh`.
 
@@ -83,7 +90,7 @@ Additionally, we provide scripts to read logs from your function and to wipe all
 
 ### Writing Functions
 
-This tinyFaaS prototype only supports functions written for NodeJS 10, Python 3.9, and binary functions.
+This tinyFaaS prototype only supports functions written for NodeJS 20, Python 3.9, and binary functions.
 
 #### NodeJS 20
 
@@ -138,12 +145,13 @@ curl --header "X-tinyFaaS-Async: true" "http://localhost:8000/sieve"
 
 #### gRPC
 
-To use the gRPC endpoint, compile the `api` protocol buffer (included in [`./src/reverse-proxy/api`](./src/reverse-proxy/api)) and import it into your application.
-Specify the tinyFaaS host and port (default is `8000`) for the GRPC endpoint and use the `Request` function with the `functionIdentifier` being your function's name and the `data` field including data in any form you want.
+To use the gRPC endpoint, compile the `api` protocol buffer (included in [`./cmd/rproxy/api`](./cmd/rproxy/api)) and import it into your application.
+Specify the tinyFaaS host and port (default is `9000`) for the GRPC endpoint and use the `Request` function with the `functionIdentifier` being your function's name and the `data` field including data in any form you want.
 
 ### Removing tinyFaaS
 
-To remove tinyFaaS, remove all containers created by tinyFaaS and the management service, as well as the internal networks used by tinyFaaS:
+When you stop the management service with `SIGINT` (`Ctrl+C`), the reverse proxy and all function handlers should be stopped.
+You can also use:
 
 ```bash
 make clean
@@ -152,14 +160,10 @@ make clean
 OR
 
 ```bash
-docker rm -f tinyfaas-mgmt 2>/dev/null
-docker rm -f $(docker ps -a -q  --filter network=endpoint-net) 2>/dev/null
-for line in $(docker network ls --filter name=handler-net -q) ; do
-    docker rm -f $(docker ps -a -q  --filter network=$line)
-done
-
-docker network rm $(docker network ls -q --filter name=endpoint-net) 2>/dev/null
-docker network rm $(docker network ls -q --filter name=handler-net) 2>/dev/null
+docker rm -f $$(docker ps -a -q --filter label=tinyFaaS)
+docker network rm $$(docker network ls -q --filter label=tinyFaaS)
+docker rmi $$(docker image ls -q --filter label=tinyFaaS)
+rm -rf ./tmp
 ```
 
 ### Specifying Ports
@@ -170,8 +174,8 @@ By default, tinyFaaS will use the following ports:
 | ---- | -------- | ------------------ |
 | 8080 | TCP      | Management Service |
 | 5683 | UDP      | CoAP Endpoint      |
-| 80   | TCP      | HTTP Endpoint      |
-| 8000 | TCP      | GRPC Endpoint      |
+| 8000 | TCP      | HTTP Endpoint      |
+| 9000 | TCP      | GRPC Endpoint      |
 
 To change the port of the management service, change the port binding in the `docker run` command.
 
