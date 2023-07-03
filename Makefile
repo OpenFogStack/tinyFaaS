@@ -1,14 +1,15 @@
+PROJECT_NAME := "tinyFaaS"
+PKG := "github.com/pfandzelter/$(PROJECT_NAME)"
+GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v /ext/ | grep -v _test.go)
+
 .PHONY: all build start clean
 
 all: build clean start
 
 build: manager rproxy
 
-manager: ./cmd/manager/main.go
-	@go build -o ./manager ./cmd/manager/*.go
-
-rproxy: ./cmd/rproxy/main.go
-	@go build -o ./rproxy ./cmd/rproxy/*.go
+manager rproxy: $(GO_FILES)
+	@go build -o $@ -v $(PKG)/cmd/$@
 
 start:
 	./manager
