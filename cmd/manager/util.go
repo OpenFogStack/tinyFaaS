@@ -27,7 +27,13 @@ func unzip(zipPath string, p string) error {
 		log.Printf("Extracting %s", f.Name)
 
 		if f.FileInfo().IsDir() {
-			log.Printf("Skipping directory %s", f.Name)
+			path := path.Join(p, f.Name)
+			log.Printf("Creating directory %s in %s", f.Name, path)
+
+			err = os.MkdirAll(path, 0777)
+			if err != nil {
+				return err
+			}
 			continue
 		}
 
