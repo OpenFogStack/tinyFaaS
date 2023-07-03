@@ -1,4 +1,4 @@
-package tfgrpc
+package grpc
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"log"
 	"net"
 
+	"github.com/pfandzelter/tinyFaaS/pkg/grpc/tinyfaas"
 	"github.com/pfandzelter/tinyFaaS/pkg/rproxy"
-	"github.com/pfandzelter/tinyFaaS/pkg/tfgrpc/api"
 	"google.golang.org/grpc"
 )
 
@@ -17,7 +17,7 @@ type GRPCServer struct {
 }
 
 // Request handles a request to the GRPC endpoint of the reverse-proxy of this tinyFaaS instance.
-func (gs *GRPCServer) Request(ctx context.Context, d *api.Data) (*api.Response, error) {
+func (gs *GRPCServer) Request(ctx context.Context, d *tinyfaas.Data) (*tinyfaas.Response, error) {
 
 	log.Printf("have request for path: %s (async: %v)", d.FunctionIdentifier, false)
 
@@ -25,17 +25,17 @@ func (gs *GRPCServer) Request(ctx context.Context, d *api.Data) (*api.Response, 
 
 	switch s {
 	case rproxy.StatusOK:
-		return &api.Response{
+		return &tinyfaas.Response{
 			Response: string(res),
 		}, nil
 	case rproxy.StatusAccepted:
-		return &api.Response{}, nil
+		return &tinyfaas.Response{}, nil
 	case rproxy.StatusNotFound:
 		return nil, fmt.Errorf("function %s not found", d.FunctionIdentifier)
 	case rproxy.StatusError:
 		return nil, fmt.Errorf("error calling function %s", d.FunctionIdentifier)
 	}
-	return &api.Response{
+	return &tinyfaas.Response{
 		Response: string(res),
 	}, nil
 }
@@ -43,7 +43,7 @@ func (gs *GRPCServer) Request(ctx context.Context, d *api.Data) (*api.Response, 
 func Start(r *rproxy.RProxy, listenAddr string) {
 	gs := grpc.NewServer()
 
-	api.RegisterTinyFaaSServer(gs, &GRPCServer{
+	tinyfaas.RegisterTinyFaaSServer(gs, &GRPCServer{
 		r: r,
 	})
 

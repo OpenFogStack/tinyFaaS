@@ -1,4 +1,4 @@
-package tfdocker
+package docker
 
 import (
 	"bufio"

@@ -14,7 +14,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/pfandzelter/tinyFaaS/pkg/tfdocker"
+	"github.com/pfandzelter/tinyFaaS/pkg/docker"
 	"github.com/pfandzelter/tinyFaaS/pkg/util"
 )
 
@@ -51,7 +51,7 @@ func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rprox
 
 	if tfBackend == "docker" {
 		ms.createHandler = func(name string, env string, threads int, filedir string, tinyFaaSID string) (Handler, error) {
-			return tfdocker.Create(name, env, threads, filedir, tinyFaaSID)
+			return docker.Create(name, env, threads, filedir, tinyFaaSID)
 		}
 	} else {
 		log.Fatal("invalid backend", tfBackend)
