@@ -13,9 +13,9 @@ import (
 	"path"
 	"sync"
 
+	"github.com/OpenFogStack/tinyFaaS/pkg/docker"
+	"github.com/OpenFogStack/tinyFaaS/pkg/util"
 	"github.com/google/uuid"
-	"github.com/pfandzelter/tinyFaaS/pkg/docker"
-	"github.com/pfandzelter/tinyFaaS/pkg/util"
 )
 
 const (

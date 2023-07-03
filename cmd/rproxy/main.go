@@ -9,10 +9,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pfandzelter/tinyFaaS/pkg/coap"
-	"github.com/pfandzelter/tinyFaaS/pkg/grpc"
-	tfhttp "github.com/pfandzelter/tinyFaaS/pkg/http"
-	"github.com/pfandzelter/tinyFaaS/pkg/rproxy"
+	"github.com/OpenFogStack/tinyFaaS/pkg/coap"
+	"github.com/OpenFogStack/tinyFaaS/pkg/grpc"
+	tfhttp "github.com/OpenFogStack/tinyFaaS/pkg/http"
+	"github.com/OpenFogStack/tinyFaaS/pkg/rproxy"
 )
 
 func main() {

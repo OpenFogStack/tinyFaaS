@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/OpenFogStack/tinyFaaS/pkg/util"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/google/uuid"
-	"github.com/pfandzelter/tinyFaaS/pkg/util"
 )
 
 const (

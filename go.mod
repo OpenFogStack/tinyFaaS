@@ -1,4 +1,4 @@
-module github.com/pfandzelter/tinyFaaS
+module github.com/OpenFogStack/tinyFaaS
 
 go 1.20
 
