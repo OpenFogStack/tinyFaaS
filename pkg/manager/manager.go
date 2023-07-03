@@ -206,15 +206,9 @@ func (ms *ManagementService) LogsFunction(name string) (string, error) {
 }
 
 func (ms *ManagementService) Wipe() error {
-	for name, fh := range ms.functionHandlers {
+	for name := range ms.functionHandlers {
 		log.Println("destroying function", name)
-
-		err := fh.Destroy()
-		if err != nil {
-			return err
-		}
-
-		log.Println("removed function", name)
+		ms.Delete(name)
 	}
 
 	return nil
