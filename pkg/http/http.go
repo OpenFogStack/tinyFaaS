@@ -1,4 +1,4 @@
-package tfhttp
+package http
 
 import (
 	"io"

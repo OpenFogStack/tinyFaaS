@@ -2,7 +2,7 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-import api_pb2 as api__pb2
+import tinyfaas_pb2 as tinyfaas__pb2
 
 
 class TinyFaaSStub(object):
@@ -16,9 +16,9 @@ class TinyFaaSStub(object):
             channel: A grpc.Channel.
         """
         self.Request = channel.unary_unary(
-                '/openfogstack.tinyfaas.api.TinyFaaS/Request',
-                request_serializer=api__pb2.Data.SerializeToString,
-                response_deserializer=api__pb2.Response.FromString,
+                '/openfogstack.tinyfaas.tinyfaas.TinyFaaS/Request',
+                request_serializer=tinyfaas__pb2.Data.SerializeToString,
+                response_deserializer=tinyfaas__pb2.Response.FromString,
                 )
 
 
@@ -37,12 +37,12 @@ def add_TinyFaaSServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Request': grpc.unary_unary_rpc_method_handler(
                     servicer.Request,
-                    request_deserializer=api__pb2.Data.FromString,
-                    response_serializer=api__pb2.Response.SerializeToString,
+                    request_deserializer=tinyfaas__pb2.Data.FromString,
+                    response_serializer=tinyfaas__pb2.Response.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'openfogstack.tinyfaas.api.TinyFaaS', rpc_method_handlers)
+            'openfogstack.tinyfaas.tinyfaas.TinyFaaS', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -62,8 +62,8 @@ class TinyFaaS(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/openfogstack.tinyfaas.api.TinyFaaS/Request',
-            api__pb2.Data.SerializeToString,
-            api__pb2.Response.FromString,
+        return grpc.experimental.unary_unary(request, target, '/openfogstack.tinyfaas.tinyfaas.TinyFaaS/Request',
+            tinyfaas__pb2.Data.SerializeToString,
+            tinyfaas__pb2.Response.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
