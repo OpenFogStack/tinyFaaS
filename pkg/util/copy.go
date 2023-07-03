@@ -1,76 +1,14 @@
-package main
+package util
 
 import (
-	"archive/zip"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 )
-
-func unzip(zipPath string, p string) error {
-
-	log.Printf("Unzipping %s to %s", zipPath, p)
-
-	archive, err := zip.OpenReader(zipPath)
-	if err != nil {
-		return err
-	}
-
-	// extract zip
-	for _, f := range archive.File {
-		log.Printf("Extracting %s", f.Name)
-
-		if f.FileInfo().IsDir() {
-			path := path.Join(p, f.Name)
-			log.Printf("Creating directory %s in %s", f.Name, path)
-
-			err = os.MkdirAll(path, 0777)
-			if err != nil {
-				return err
-			}
-			continue
-		}
-
-		// open file
-		rc, err := f.Open()
-		if err != nil {
-			return err
-		}
-
-		// create file
-		path := path.Join(p, f.Name)
-		// err = os.MkdirAll(path, 0777)
-		// if err != nil {
-		// return err
-		// }
-
-		// write file
-		w, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-
-		// copy
-		_, err = io.Copy(w, rc)
-		if err != nil {
-			return err
-		}
-
-		log.Printf("Extracted %s to %s", f.Name, path)
-
-		// close
-		rc.Close()
-		w.Close()
-	}
-
-	return nil
-}
 
 /* MIT License
  *
@@ -95,12 +33,12 @@ func unzip(zipPath string, p string) error {
  * SOFTWARE.
  */
 
-// copyFile copies the contents of the file named src to the file named
+// CopyFile copies the contents of the file named src to the file named
 // by dst. The file will be created if it does not already exist. If the
 // destination file exists, all it's contents will be replaced by the contents
 // of the source file. The file mode will be copied from the source and
 // the copied data is synced/flushed to stable storage.
-func copyFile(src, dst string) (err error) {
+func CopyFile(src, dst string) (err error) {
 	in, err := os.Open(src)
 	if err != nil {
 		return
@@ -145,10 +83,10 @@ func copyFile(src, dst string) (err error) {
 	return
 }
 
-// copyDir recursively copies a directory tree, attempting to preserve permissions.
+// CopyDir recursively copies a directory tree, attempting to preserve permissions.
 // Source directory must exist, destination directory must *not* exist.
 // Symlinks are ignored and skipped.
-func copyDir(src string, dst string) (err error) {
+func CopyDir(src string, dst string) (err error) {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
@@ -173,7 +111,7 @@ func copyDir(src string, dst string) (err error) {
 		return
 	}
 
-	entries, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return
 	}
@@ -183,17 +121,17 @@ func copyDir(src string, dst string) (err error) {
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			err = copyDir(srcPath, dstPath)
+			err = CopyDir(srcPath, dstPath)
 			if err != nil {
 				return
 			}
 		} else {
 			// Skip symlinks.
-			if entry.Mode()&os.ModeSymlink != 0 {
+			if entry.Type()&fs.ModeSymlink != 0 {
 				continue
 			}
 
-			err = copyFile(srcPath, dstPath)
+			err = CopyFile(srcPath, dstPath)
 			if err != nil {
 				return
 			}
@@ -203,10 +141,10 @@ func copyDir(src string, dst string) (err error) {
 	return
 }
 
-// copyAll recursively copies a directory tree, attempting to preserve permissions.
+// CopyAll recursively copies a directory tree, attempting to preserve permissions.
 // Source directory must exist, destination directory must exist.
 // Symlinks are ignored and skipped.
-func copyAll(src string, dst string) (err error) {
+func CopyAll(src string, dst string) (err error) {
 	src = filepath.Clean(src)
 	dst = filepath.Clean(dst)
 
@@ -226,7 +164,7 @@ func copyAll(src string, dst string) (err error) {
 		return fmt.Errorf("destination is not a directory")
 	}
 
-	entries, err := ioutil.ReadDir(src)
+	entries, err := os.ReadDir(src)
 	if err != nil {
 		return
 	}
@@ -236,17 +174,17 @@ func copyAll(src string, dst string) (err error) {
 		dstPath := filepath.Join(dst, entry.Name())
 
 		if entry.IsDir() {
-			err = copyDir(srcPath, dstPath)
+			err = CopyDir(srcPath, dstPath)
 			if err != nil {
 				return
 			}
 		} else {
 			// Skip symlinks.
-			if entry.Mode()&os.ModeSymlink != 0 {
+			if entry.Type()&fs.ModeSymlink != 0 {
 				continue
 			}
 
-			err = copyFile(srcPath, dstPath)
+			err = CopyFile(srcPath, dstPath)
 			if err != nil {
 				return
 			}
