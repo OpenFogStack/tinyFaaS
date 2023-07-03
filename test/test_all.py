@@ -452,7 +452,7 @@ if __name__ == "__main__":
     # check that everything is built
     try:
         os.stat(path.join(src_path, "manager"))
-    except subprocess.CalledProcessError as e:
+    except FileNotFoundError:
         try:
             print("Building...")
             subprocess.run(
