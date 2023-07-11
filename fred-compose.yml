@@ -27,7 +27,7 @@ services:
     network_mode: bridge
 
   fred:
-    image: git.tu-berlin.de:5000/mcc-fred/fred/fred:tp-f36a46e6
+    image: git.tu-berlin.de:5000/mcc-fred/fred/fred:v0.2.14
     container_name: fred
     command: "--nodeID fred \
       --nase-host ${ETCD_HOST:-localhost}:${ETCD_PORT:-2379} \

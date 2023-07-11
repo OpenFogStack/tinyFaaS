@@ -28,7 +28,7 @@ const (
 	TmpDir           = "./tmp"
 	containerTimeout = 1
 	fredRegistry     = "git.tu-berlin.de:5000/mcc-fred/fred"
-	fredLibImage     = "alexandra:v0.2.13"
+	fredLibImage     = "alexandra:v0.2.14"
 	fredLibPort      = 10000
 )
 

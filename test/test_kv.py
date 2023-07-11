@@ -227,10 +227,6 @@ class TestEchoKV(TinyFaaSDockerKVTest):
             response.payload.decode("utf-8"),
             (self.payload + "\n") * self.cls.num_invocations,
         )
-        # self.assertEqual(
-        #     response.payload.decode("utf-8"),
-        #     "",
-        # )
 
         return
 
