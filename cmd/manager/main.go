@@ -12,6 +12,7 @@ import (
 	"strconv"
 
 	"github.com/OpenFogStack/tinyFaaS/pkg/docker"
+	"github.com/OpenFogStack/tinyFaaS/pkg/dockerkv"
 	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
 	"github.com/google/uuid"
 )
@@ -63,7 +64,6 @@ func main() {
 		ports[p] = port
 	}
 
-	// setting backend to docker
 	id := uuid.New().String()
 
 	// find backend
@@ -79,10 +79,64 @@ func main() {
 	case "docker":
 		log.Println("using docker backend")
 		tfBackend = docker.New(id)
+	case "dockerkv":
+		log.Println("using dockerkv backend")
+
+		// get dockerkv parameters
+		dockerkvNodeID := fmt.Sprintf("%s-%s", id, "fred")
+
+		dockerkvHost, ok := os.LookupEnv("DOCKERKV_HOST")
+		if !ok {
+			dockerkvHost = "localhost"
+			log.Println("DOCKERKV_HOST not set, using localhost")
+			// log.Fatal("DOCKERKV_HOST not set")
+		}
+
+		dockerkvPort, ok := os.LookupEnv("DOCKERKV_PORT")
+		if !ok {
+			dockerkvPort = "9001"
+			log.Println("DOCKERKV_PORT not set, using 9001")
+		}
+
+		dockerkvPortInt, err := strconv.Atoi(dockerkvPort)
+		if err != nil {
+			log.Fatal("DOCKERKV_PORT not an integer")
+		}
+
+		dockerkvPeeringPort, ok := os.LookupEnv("DOCKERKV_PEERING_PORT")
+		if !ok {
+			dockerkvPeeringPort = "5555"
+			log.Println("DOCKERKV_PEERING_PORT not set, using 5555")
+		}
+
+		dockerkvPeeringPortInt, err := strconv.Atoi(dockerkvPeeringPort)
+		if err != nil {
+			log.Fatal("DOCKERKV_PEERING_PORT not an integer")
+		}
+
+		dockerkvCaCertPath, ok := os.LookupEnv("DOCKERKV_CA_CERT_PATH")
+		if !ok {
+			log.Fatal("DOCKERKV_CA_CERT_PATH not set")
+		}
+
+		dockerkvCaKeyPath, ok := os.LookupEnv("DOCKERKV_CA_KEY_PATH")
+		if !ok {
+			log.Fatal("DOCKERKV_CA_KEY_PATH not set")
+		}
+
+		tfBackend = dockerkv.New(id, dockerkvNodeID, dockerkvHost, dockerkvPortInt, dockerkvPeeringPortInt, dockerkvCaCertPath, dockerkvCaKeyPath)
 	default:
 		log.Fatalf("invalid backend %s", backend)
 	}
 
+	// create rproxy
+	// log.Println("starting rproxy")
+	// ms.startRProxy(RProxyListenAddress, RProxyConfigPort, rproxyPorts)
+
+	// start rproxy
+	log.Println("starting manager")
+
+	// setting backend to docker
 	ms := manager.New(
 		id,
 		RProxyListenAddress,

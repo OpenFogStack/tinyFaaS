@@ -11,6 +11,7 @@ require (
 )
 
 require (
+	git.tu-berlin.de/mcc-fred/fred v0.2.11 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
 	github.com/containerd/containerd v1.7.2 // indirect
 	github.com/docker/distribution v2.8.2+incompatible // indirect

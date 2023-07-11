@@ -1,0 +1,68 @@
+version: "3.7"
+
+services:
+  etcd:
+    image: gcr.io/etcd-development/etcd:v3.5.7
+    container_name: etcd
+    entrypoint: "etcd --name s-1 \
+      --data-dir /tmp/etcd/s-1 \
+      --listen-client-urls https://0.0.0.0:2379 \
+      --advertise-client-urls https://${ETCD_HOST:-localhost}:${ETCD_PORT:-2379} \
+      --listen-peer-urls http://0.0.0.0:2380 \
+      --initial-advertise-peer-urls http://0.0.0.0:2380 \
+      --initial-cluster s-1=http://0.0.0.0:2380 \
+      --initial-cluster-token tkn \
+      --initial-cluster-state new \
+      --cert-file=/cert/etcd.crt \
+      --key-file=/cert/etcd.key \
+      --client-cert-auth \
+      --trusted-ca-file=/cert/ca.crt \
+      "
+    volumes:
+      - ./${CERT_DIR:-certs}/etcd.crt:/cert/etcd.crt
+      - ./${CERT_DIR:-certs}/etcd.key:/cert/etcd.key
+      - ./${CERT_DIR:-certs}/ca.crt:/cert/ca.crt
+    ports:
+      - "${ETCD_PORT:-2379}:2379"
+    network_mode: bridge
+
+  fred:
+    image: git.tu-berlin.de:5000/mcc-fred/fred/fred:tp-f36a46e6
+    container_name: fred
+    command: "--nodeID fred \
+      --nase-host ${ETCD_HOST:-localhost}:${ETCD_PORT:-2379} \
+      --adaptor badgerdb \
+      --badgerdb-path ./db \
+      --host 0.0.0.0:9001 \
+      --advertise-host ${FRED_HOST:-localhost}:${FRED_PORT:-9001} \
+      --peer-host 0.0.0.0:5555 \
+      --peer-advertise-host ${FRED_HOST:-localhost}:${FRED_PEERING_PORT:-9001} \
+      --log-level debug \
+      --handler dev \
+      --cert /cert/node.crt \
+      --key /cert/node.key \
+      --ca-file /cert/ca.crt \
+      --skip-verify \
+      --peer-cert /cert/node.crt \
+      --peer-key /cert/node.key \
+      --peer-ca /cert/ca.crt \
+      --peer-skip-verify \
+      --nase-cert /cert/node.crt \
+      --nase-key /cert/node.key \
+      --nase-ca /cert/ca.crt \
+      --nase-skip-verify \
+      --trigger-cert /cert/node.crt \
+      --trigger-key /cert/node.key \
+      --trigger-ca /cert/ca.crt \
+      --trigger-skip-verify \
+      "
+    volumes:
+      - ./${CERT_DIR:-certs}/fred.crt:/cert/node.crt
+      - ./${CERT_DIR:-certs}/fred.key:/cert/node.key
+      - ./${CERT_DIR:-certs}/ca.crt:/cert/ca.crt
+    ports:
+      - "${FRED_PORT:-9001}:9001"
+      - "${FRED_PEERING_PORT:-5555}:5555"
+    network_mode: bridge
+    depends_on:
+      - etcd
