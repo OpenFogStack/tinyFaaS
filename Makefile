@@ -44,11 +44,11 @@ ${CERTS_DIR}/fred.key ${CERTS_DIR}/fred.crt: ${CERTS_DIR}/ca.crt
 	@mkdir -p ${CERTS_DIR}
 	./gen-cert.sh ${CERTS_DIR} fred ${FRED_HOST}
 
-test: build ${TEST_DIR}/test_all.py
-	@python3 ${TEST_DIR}/test_all.py
+test: ${TEST_DIR}/test_all.py
+	@python3 $<
 
-testkv: build ${TEST_DIR}/test_kv.py
-	@python3 ${TEST_DIR}/test_kv.py
+testkv: ${TEST_DIR}/test_kv.py
+	@python3 $<
 
 clean: fred-compose.yml
 	@docker rm -f $$(docker ps -a -q --filter label=tinyFaaS) > /dev/null || true

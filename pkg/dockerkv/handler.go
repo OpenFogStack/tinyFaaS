@@ -69,6 +69,22 @@ func New(tinyFaaSID string, fredNodeID string, fredHost string, fredPort int, fr
 		return nil
 	}
 
+	// pull the fred lib image
+	// docker pull <image>
+	_, err = client.ImagePull(
+		context.Background(),
+		fmt.Sprintf("%s/%s", fredRegistry, fredLibImage),
+		types.ImagePullOptions{},
+	)
+
+	if err != nil {
+		log.Fatalf("error pulling fred lib image: %s", err)
+		return nil
+	}
+
+	log.Print("pulled fred lib image")
+
+	// certificate preparation
 	certsDir, err := filepath.Abs(path.Join(TmpDir, uuid.NewString()))
 	if err != nil {
 		log.Fatalf("error creating certificates for fred client: %s", err)
