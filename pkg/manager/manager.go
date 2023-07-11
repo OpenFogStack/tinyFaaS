@@ -13,7 +13,6 @@ import (
 	"path"
 	"sync"
 
-	"github.com/OpenFogStack/tinyFaaS/pkg/docker"
 	"github.com/OpenFogStack/tinyFaaS/pkg/util"
 	"github.com/google/uuid"
 )
@@ -24,12 +23,17 @@ const (
 
 type ManagementService struct {
 	id                    string
-	createHandler         func(name string, env string, threads int, filedir string, tinyFaaSID string) (Handler, error)
+	backend               Backend
 	functionHandlers      map[string]Handler
 	functionHandlersMutex sync.Mutex
 	rproxyListenAddress   string
 	rproxyPort            map[string]int
 	rproxyConfigPort      int
+}
+
+type Backend interface {
+	Create(name string, env string, threads int, filedir string) (Handler, error)
+	Stop() error
 }
 
 type Handler interface {
@@ -39,28 +43,26 @@ type Handler interface {
 	Logs() (string, error)
 }
 
-func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rproxyConfigPort int, tfBackend string) *ManagementService {
+func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rproxyConfigPort int, tfBackend Backend) *ManagementService {
 
 	ms := &ManagementService{
 		id:                  id,
+		backend:             tfBackend,
 		functionHandlers:    make(map[string]Handler),
 		rproxyListenAddress: rproxyListenAddress,
 		rproxyPort:          rproxyPort,
 		rproxyConfigPort:    rproxyConfigPort,
 	}
 
-	if tfBackend == "docker" {
-		ms.createHandler = func(name string, env string, threads int, filedir string, tinyFaaSID string) (Handler, error) {
-			return docker.Create(name, env, threads, filedir, tinyFaaSID)
-		}
-	} else {
-		log.Fatal("invalid backend", tfBackend)
-	}
-
 	return ms
 }
 
 func (ms *ManagementService) createFunction(name string, env string, threads int, funczip []byte, subfolderPath string) (string, error) {
+
+	// only allow alphanumeric characters
+	if !util.IsAlphaNumeric(name) {
+		return "", fmt.Errorf("function name %s contains non-alphanumeric characters", name)
+	}
 
 	// make a uuidv4 for the function
 	uuid, err := uuid.NewRandom()
@@ -96,6 +98,22 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 		return "", err
 	}
 
+	defer func() {
+		// remove folder
+		err = os.RemoveAll(p)
+		if err != nil {
+			log.Println("error removing folder", p, err)
+		}
+
+		err = os.Remove(zipPath)
+		if err != nil {
+			log.Println("error removing zip", zipPath, err)
+		}
+
+		log.Println("removed folder", p)
+		log.Println("removed zip", zipPath)
+	}()
+
 	if subfolderPath != "" {
 		p = path.Join(p, subfolderPath)
 	}
@@ -112,7 +130,7 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 	ms.functionHandlersMutex.Lock()
 	defer ms.functionHandlersMutex.Unlock()
 
-	fh, err := ms.createHandler(name, env, threads, p, ms.id)
+	fh, err := ms.backend.Create(name, env, threads, p)
 
 	if err != nil {
 		return "", err
@@ -145,6 +163,7 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 
 	resp, err := http.Post(fmt.Sprintf("http://%s:%d", ms.rproxyListenAddress, ms.rproxyConfigPort), "application/json", bytes.NewBuffer(b))
 	if err != nil && !errors.Is(err, io.EOF) {
+		log.Println("error telling rproxy about new function", name, err)
 		return "", err
 	}
 
@@ -160,20 +179,6 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 	}
 
 	log.Println("rproxy response:", string(r))
-
-	// remove folder
-	err = os.RemoveAll(p)
-	if err != nil {
-		return "", err
-	}
-
-	err = os.Remove(zipPath)
-	if err != nil {
-		return "", err
-	}
-
-	log.Println("removed folder", p)
-	log.Println("removed zip", zipPath)
 
 	return name, nil
 }
@@ -335,4 +340,13 @@ func (ms *ManagementService) UrlUpload(name string, env string, threads int, fun
 	}
 
 	return r, nil
+}
+
+func (ms *ManagementService) Stop() error {
+	err := ms.Wipe()
+	if err != nil {
+		return err
+	}
+
+	return ms.backend.Stop()
 }

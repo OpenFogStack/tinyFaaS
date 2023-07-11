@@ -38,9 +38,10 @@ func (r *RProxy) Add(name string, ips []string) error {
 	r.hl.Lock()
 	defer r.hl.Unlock()
 
-	if _, ok := r.hosts[name]; ok {
-		return fmt.Errorf("function already exists")
-	}
+	// if function exists, we should update!
+	// if _, ok := r.hosts[name]; ok {
+	// 	return fmt.Errorf("function already exists")
+	// }
 
 	r.hosts[name] = ips
 	return nil
@@ -67,12 +68,18 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 		return StatusNotFound, nil
 	}
 
-	log.Printf("have handler: %s", handler)
+	log.Printf("have handlers: %s", handler)
 
+	// choose random handler
+	h := handler[rand.Intn(len(handler))]
+
+	log.Printf("chosen handler: %s", h)
+
+	// call function
 	if async {
 		log.Printf("async request accepted")
 		go func() {
-			resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(payload))
+			resp, err := http.Post(fmt.Sprintf("http://%s:8000/fn", h), "application/binary", bytes.NewBuffer(payload))
 
 			if err != nil {
 				return
@@ -87,7 +94,7 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 
 	// call function and return results
 	log.Printf("sync request starting")
-	resp, err := http.Post("http://"+handler[rand.Intn(len(handler))]+":8000/fn", "application/binary", bytes.NewBuffer(payload))
+	resp, err := http.Post(fmt.Sprintf("http://%s:8000/fn", h), "application/binary", bytes.NewBuffer(payload))
 
 	if err != nil {
 		log.Print(err)
@@ -104,7 +111,7 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 		return StatusError, nil
 	}
 
-	log.Printf("have response for sync request: %s", res_body)
+	// log.Printf("have response for sync request: %s", res_body)
 
 	return StatusOK, res_body
 }
