@@ -20,8 +20,8 @@ connection: typing.Dict[str, typing.Union[str, int]] = {
 }
 
 tf_process: typing.Optional[subprocess.Popen] = None  # type: ignore
-src_path = ".."
-fn_path = path.join(".", "fns")
+src_path = "."
+fn_path = path.join(src_path, "test", "fns")
 script_path = path.join(src_path, "scripts")
 grpc_api_path = path.join(src_path, "pkg", "grpc", "tinyfaas")
 
@@ -345,7 +345,7 @@ class TestBinary(TinyFaaSTest):
     def setUpClass(cls) -> None:
         super(TestBinary, cls).setUpClass()
         cls.fn = startFunction(
-            path.join(fn_path, "echo-binary"), "echo-binary", "binary", 1
+            path.join(fn_path, "echo-binary"), "echobinary", "binary", 1
         )
 
     def setUp(self) -> None:
@@ -448,18 +448,5 @@ if __name__ == "__main__":
     except subprocess.CalledProcessError as e:
         print(f"Docker is not installed or not working:\n{e.stderr.decode('utf-8')}")
         sys.exit(1)
-
-    # check that everything is built
-    try:
-        os.stat(path.join(src_path, "manager"))
-    except FileNotFoundError:
-        try:
-            print("Building...")
-            subprocess.run(
-                ["make", "build"], cwd=src_path, check=True, capture_output=True
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"Failed to build:\n{e.stderr.decode('utf-8')}")
-            sys.exit(1)
 
     unittest.main()  # run all tests

@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"strconv"
 
+	"github.com/OpenFogStack/tinyFaaS/pkg/docker"
 	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
 	"github.com/google/uuid"
 )
@@ -62,21 +63,32 @@ func main() {
 		ports[p] = port
 	}
 
-	// create rproxy
-	// log.Println("starting rproxy")
-	// ms.startRProxy(RProxyListenAddress, RProxyConfigPort, rproxyPorts)
-
-	// start rproxy
-	log.Println("starting manager")
-
 	// setting backend to docker
-	backend := "docker"
+	id := uuid.New().String()
+
+	// find backend
+	backend, ok := os.LookupEnv("TF_BACKEND")
+
+	if !ok {
+		backend = "docker"
+		log.Println("using default backend docker")
+	}
+
+	var tfBackend manager.Backend
+	switch backend {
+	case "docker":
+		log.Println("using docker backend")
+		tfBackend = docker.New(id)
+	default:
+		log.Fatalf("invalid backend %s", backend)
+	}
+
 	ms := manager.New(
-		uuid.New().String(),
+		id,
 		RProxyListenAddress,
 		ports,
 		RProxyConfigPort,
-		backend,
+		tfBackend,
 	)
 
 	rproxyArgs := []string{fmt.Sprintf("%s:%d", RProxyListenAddress, RProxyConfigPort)}
@@ -151,8 +163,8 @@ func main() {
 		}
 
 		// stop handlers
-		log.Println("stopping handlers")
-		err = ms.Wipe()
+		log.Println("stopping management service")
+		err = ms.Stop()
 
 		if err != nil {
 			log.Println(err)
