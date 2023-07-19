@@ -210,6 +210,15 @@ func (ms *ManagementService) LogsFunction(name string) (string, error) {
 	return fh.Logs()
 }
 
+func (ms *ManagementService) List() []string {
+	list := make([]string, 0, len(ms.functionHandlers))
+	for name := range ms.functionHandlers {
+		list = append(list, name)
+	}
+
+	return list
+}
+
 func (ms *ManagementService) Wipe() error {
 	for name := range ms.functionHandlers {
 		log.Println("destroying function", name)
