@@ -258,6 +258,14 @@ func (s *server) listHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	l := s.ms.List()
+
+	// return success
+	w.WriteHeader(http.StatusOK)
+	for _, f := range l {
+		fmt.Fprintf(w, "%s\n", f)
+	}
 }
 
 func (s *server) wipeHandler(w http.ResponseWriter, r *http.Request) {
