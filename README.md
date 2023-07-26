@@ -4,7 +4,7 @@ tinyFaaS is a lightweight FaaS (Function-as-a-Service) platform for edge environ
 
 ## Research
 
-To use tinyFaaS in the version used in the paper mentioned above, use `git checkout v0.1`.
+To use tinyFaaS in the version used in our paper, use `git checkout v0.1`.
 If you use this software in a publication, please cite it as:
 
 ### Text
@@ -44,7 +44,7 @@ In order to run tinyFaaS, the management service has to be deployed.
 It will then automatically start the reverse proxy.
 Once a function is deployed to tinyFaaS, function handlers are created automatically.
 
-### Getting Started
+### Prerequisites
 
 Before you get started, make sure you have the following dependencies installed:
 
@@ -52,16 +52,13 @@ Before you get started, make sure you have the following dependencies installed:
 - Docker (>=v24)
 - Make
 
-Note that this only works on Linux.
+Note that tinyFaaS is intended for Linux hosts (`x86_64` and `arm64`).
+Due to limitations of Docker Desktop for Mac, installing and running [`docker-mac-net-connect`](https://github.com/chipmk/docker-mac-net-connect) is necessary to run tinyFaaS on macOS hosts.
+Running tinyFaaS on Windows computers (native or through WSL) is probably possible but has not been tested and is thus not recommended.
 
-To get started, build the management service and reverse proxy:
+### Getting Started
 
-```sh
-make manager
-make rproxy
-```
-
-Then start tinyFaaS with:
+Start tinyFaaS with:
 
 ```sh
 make
@@ -106,7 +103,7 @@ This method must accept a string as an input (that can also be `None`) and must 
 You may also provide a `requirements.txt` file from which dependencies will be installed alongside your function.
 Any other data you provide will be available.
 
-To get started with this type of function, use the example `echo` function in [`./tests/fns/echo`](./tests/fns/echo).
+To get started with this type of function, use the example `echo` function in [`./test/fns/echo`](./tests/fns/echo).
 
 #### Binary
 
@@ -115,7 +112,7 @@ This shell script may also call other binaries as needed.
 Input data is provided from `stdin`.
 Output responses should be provided on `stdout`.
 
-To get started with this type of function, use the example `echo-binary` function in [`./tests/fns/echo-binary`](./tests/fns/echo-binary).
+To get started with this type of function, use the example `echo-binary` function in [`./test/fns/echo-binary`](./tests/fns/echo-binary).
 
 ### Calling Functions
 
@@ -124,7 +121,7 @@ Different protocols are useful for different use-cases: CoAP for lightweight com
 
 #### CoAP
 
-To call a tinyFaaS function using its CoAP endpoint, make a GET or POST request to`coap://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS CoAP endpoint (default is `5683`), and `{NAME}` is the name of your function.
+To call a tinyFaaS function using its CoAP endpoint, make a GET or POST request to `coap://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS host, `{PORT}` is the port for the tinyFaaS CoAP endpoint (default is `5683`), and `{NAME}` is the name of your function.
 You may include data in any form you want, it will be passed to your function.
 
 Unfortunately, [`curl` does not yet support CoAP](https://curl.se/mail/lib-2018-05/0017.html), but [a number](https://github.com/coapjs/coap-cli) [of other](https://aiocoap.readthedocs.io/en/latest/tools.html) [tools are available](https://fitbit.github.io/golden-gate/tools/coap_client.html).
