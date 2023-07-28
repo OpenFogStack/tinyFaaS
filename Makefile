@@ -18,8 +18,5 @@ start: manager rproxy
 test: build ${TEST_DIR}/test_all.py
 	@python3 ${TEST_DIR}/test_all.py
 
-clean:
-	@docker rm -f $$(docker ps -a -q --filter label=tinyFaaS) > /dev/null || true
-	@docker network rm $$(docker network ls -q --filter label=tinyFaaS) > /dev/null || true
-	@docker rmi $$(docker image ls -q --filter label=tinyFaaS) > /dev/null || true
-	@rm -rf ./tmp
+clean: clean.sh
+	@sh clean.sh
