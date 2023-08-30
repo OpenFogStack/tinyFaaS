@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -293,7 +294,7 @@ func (s *server) logsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// parse request
-	var logs string
+	var logs io.Reader
 	name := r.URL.Query().Get("name")
 
 	if name == "" {
@@ -318,7 +319,13 @@ func (s *server) logsHandler(w http.ResponseWriter, r *http.Request) {
 
 	// return success
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprint(w, logs)
+	// w.Header().Set("Content-Type", "text/plain")
+	_, err := io.Copy(w, logs)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println(err)
+		return
+	}
 }
 
 func (s *server) urlUploadHandler(w http.ResponseWriter, r *http.Request) {
