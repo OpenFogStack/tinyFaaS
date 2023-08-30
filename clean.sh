@@ -26,7 +26,9 @@ fi
 images=$(docker image ls -q --filter label=$TF_TAG)
 
 if [ -n "$images" ]; then
-    docker rmi "$images" > /dev/null
+    for image in $images; do
+        docker image rm "$image" > /dev/null
+    done
 else
     echo "No old images to remove. Skipping..."
 fi
