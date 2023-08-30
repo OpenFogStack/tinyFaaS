@@ -40,7 +40,7 @@ type Handler interface {
 	IPs() []string
 	Start() error
 	Destroy() error
-	Logs() (string, error)
+	Logs() (io.Reader, error)
 }
 
 func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rproxyConfigPort int, tfBackend Backend) *ManagementService {
@@ -183,28 +183,32 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 	return name, nil
 }
 
-func (ms *ManagementService) Logs() (string, error) {
+func (ms *ManagementService) Logs() (io.Reader, error) {
 
-	var logs string
+	var logs bytes.Buffer
 
 	for name := range ms.functionHandlers {
 		l, err := ms.LogsFunction(name)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		logs += l
-		logs += "\n"
+		_, err = io.Copy(&logs, l)
+		if err != nil {
+			return nil, err
+		}
+
+		logs.WriteString("\n")
 	}
 
-	return logs, nil
+	return &logs, nil
 }
 
-func (ms *ManagementService) LogsFunction(name string) (string, error) {
+func (ms *ManagementService) LogsFunction(name string) (io.Reader, error) {
 
 	fh, ok := ms.functionHandlers[name]
 	if !ok {
-		return "", fmt.Errorf("function %s not found", name)
+		return nil, fmt.Errorf("function %s not found", name)
 	}
 
 	return fh.Logs()

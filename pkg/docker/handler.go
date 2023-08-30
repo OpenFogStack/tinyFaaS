@@ -2,6 +2,7 @@ package docker
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/google/uuid"
 )
 
@@ -359,10 +361,10 @@ func (dh *dockerHandler) Destroy() error {
 	return nil
 }
 
-func (dh *dockerHandler) Logs() (string, error) {
+func (dh *dockerHandler) Logs() (io.Reader, error) {
 	// get container logs
 	// docker logs <container>
-	var logs string
+	var logs bytes.Buffer
 	for _, container := range dh.containers {
 		l, err := dh.client.ContainerLogs(
 			context.Background(),
@@ -370,22 +372,36 @@ func (dh *dockerHandler) Logs() (string, error) {
 			types.ContainerLogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
+				Timestamps: true,
 			},
 		)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		lstr, err := io.ReadAll(l)
+		var lstdout bytes.Buffer
+		var lstderr bytes.Buffer
+
+		_, err = stdcopy.StdCopy(&lstdout, &lstderr, l)
+
 		l.Close()
 
 		if err != nil {
-			return "", err
+			return nil, err
 		}
 
-		logs += string(lstr)
-		logs += "\n"
+		// add a prefix to each line
+		// function=<function> handler=<handler> <line>
+		scanner := bufio.NewScanner(&lstdout)
+
+		for scanner.Scan() {
+			logs.WriteString(fmt.Sprintf("function=%s handler=%s %s\n", dh.name, container, scanner.Text()))
+		}
+
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
 	}
 
-	return logs, nil
+	return &logs, nil
 }
