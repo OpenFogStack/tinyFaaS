@@ -32,7 +32,7 @@ type ManagementService struct {
 }
 
 type Backend interface {
-	Create(name string, env string, threads int, filedir string) (Handler, error)
+	Create(name string, env string, threads int, filedir string, envs map[string]string) (Handler, error)
 	Stop() error
 }
 
@@ -57,7 +57,7 @@ func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rprox
 	return ms
 }
 
-func (ms *ManagementService) createFunction(name string, env string, threads int, funczip []byte, subfolderPath string) (string, error) {
+func (ms *ManagementService) createFunction(name string, env string, threads int, funczip []byte, subfolderPath string, envs map[string]string) (string, error) {
 
 	// only allow alphanumeric characters
 	if !util.IsAlphaNumeric(name) {
@@ -130,7 +130,7 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 	ms.functionHandlersMutex.Lock()
 	defer ms.functionHandlersMutex.Unlock()
 
-	fh, err := ms.backend.Create(name, env, threads, p)
+	fh, err := ms.backend.Create(name, env, threads, p, envs)
 
 	if err != nil {
 		return "", err
@@ -287,7 +287,7 @@ func (ms *ManagementService) Delete(name string) error {
 	return nil
 }
 
-func (ms *ManagementService) Upload(name string, env string, threads int, zipped string) (string, error) {
+func (ms *ManagementService) Upload(name string, env string, threads int, zipped string, envs map[string]string) (string, error) {
 
 	// b64 decode zip
 	zip, err := base64.StdEncoding.DecodeString(zipped)
@@ -298,7 +298,7 @@ func (ms *ManagementService) Upload(name string, env string, threads int, zipped
 	}
 
 	// create function handler
-	n, err := ms.createFunction(name, env, threads, zip, "")
+	n, err := ms.createFunction(name, env, threads, zip, "", envs)
 
 	if err != nil {
 		// w.WriteHeader(http.StatusInternalServerError)
@@ -316,7 +316,7 @@ func (ms *ManagementService) Upload(name string, env string, threads int, zipped
 	return r, nil
 }
 
-func (ms *ManagementService) UrlUpload(name string, env string, threads int, funcurl string, subfolder string) (string, error) {
+func (ms *ManagementService) UrlUpload(name string, env string, threads int, funcurl string, subfolder string, envs map[string]string) (string, error) {
 
 	// download url
 	resp, err := http.Get(funcurl)
@@ -337,7 +337,7 @@ func (ms *ManagementService) UrlUpload(name string, env string, threads int, fun
 	}
 
 	// create function handler
-	n, err := ms.createFunction(name, env, threads, zip, subfolder)
+	n, err := ms.createFunction(name, env, threads, zip, subfolder, envs)
 
 	if err != nil {
 		// w.WriteHeader(http.StatusInternalServerError)

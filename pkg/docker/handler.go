@@ -63,7 +63,7 @@ func (db *DockerBackend) Stop() error {
 	return nil
 }
 
-func (db *DockerBackend) Create(name string, env string, threads int, filedir string) (manager.Handler, error) {
+func (db *DockerBackend) Create(name string, env string, threads int, filedir string, envs map[string]string) (manager.Handler, error) {
 
 	// make a unique function name by appending uuid string to function name
 	uuid, err := uuid.NewRandom()
@@ -165,6 +165,12 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 
 	log.Println("created network", dh.uniqueName, "with id", network.ID)
 
+	e := make([]string, 0, len(envs))
+
+	for k, v := range envs {
+		e = append(e, fmt.Sprintf("%s=%s", k, v))
+	}
+
 	// create containers
 	// docker run -d --network <network> --name <container> <image>
 	for i := 0; i < dh.threads; i++ {
@@ -176,6 +182,7 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 					"tinyfaas-function": dh.name,
 					"tinyFaaS":          db.tinyFaaSID,
 				},
+				Env: e,
 			},
 			&container.HostConfig{
 				NetworkMode: container.NetworkMode(dh.uniqueName),

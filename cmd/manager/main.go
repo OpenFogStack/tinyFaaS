@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
+	"strings"
 
 	"github.com/OpenFogStack/tinyFaaS/pkg/docker"
 	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
@@ -192,10 +193,11 @@ func (s *server) uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// parse request
 	d := struct {
-		FunctionName    string `json:"name"`
-		FunctionEnv     string `json:"env"`
-		FunctionThreads int    `json:"threads"`
-		FunctionZip     string `json:"zip"`
+		FunctionName    string   `json:"name"`
+		FunctionEnv     string   `json:"env"`
+		FunctionThreads int      `json:"threads"`
+		FunctionZip     string   `json:"zip"`
+		FunctionEnvs    []string `json:"envs"`
 	}{}
 
 	err := json.NewDecoder(r.Body).Decode(&d)
@@ -205,9 +207,21 @@ func (s *server) uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("got request to upload function: Name", d.FunctionName, "Env", d.FunctionEnv, "Threads", d.FunctionThreads, "Bytes", len(d.FunctionZip))
+	log.Println("got request to upload function: Name", d.FunctionName, "Env", d.FunctionEnv, "Threads", d.FunctionThreads, "Bytes", len(d.FunctionZip), "Envs", d.FunctionEnvs)
 
-	res, err := s.ms.Upload(d.FunctionName, d.FunctionEnv, d.FunctionThreads, d.FunctionZip)
+	envs := make(map[string]string)
+	for _, e := range d.FunctionEnvs {
+		k, v, ok := strings.Cut(e, "=")
+
+		if !ok {
+			log.Println("invalid env:", e)
+			continue
+		}
+
+		envs[k] = v
+	}
+
+	res, err := s.ms.Upload(d.FunctionName, d.FunctionEnv, d.FunctionThreads, d.FunctionZip, envs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -336,11 +350,12 @@ func (s *server) urlUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// parse request
 	d := struct {
-		FunctionName    string `json:"name"`
-		FunctionEnv     string `json:"env"`
-		FunctionThreads int    `json:"threads"`
-		FunctionURL     string `json:"url"`
-		SubFolder       string `json:"subfolder_path"`
+		FunctionName    string   `json:"name"`
+		FunctionEnv     string   `json:"env"`
+		FunctionThreads int      `json:"threads"`
+		FunctionURL     string   `json:"url"`
+		FunctionEnvs    []string `json:"envs"`
+		SubFolder       string   `json:"subfolder_path"`
 	}{}
 
 	err := json.NewDecoder(r.Body).Decode(&d)
@@ -352,7 +367,19 @@ func (s *server) urlUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	log.Println("got request to upload function:", d)
 
-	res, err := s.ms.UrlUpload(d.FunctionName, d.FunctionEnv, d.FunctionThreads, d.FunctionURL, d.SubFolder)
+	envs := make(map[string]string)
+	for _, e := range d.FunctionEnvs {
+		k, v, ok := strings.Cut(e, "=")
+
+		if !ok {
+			log.Println("invalid env:", e)
+			continue
+		}
+
+		envs[k] = v
+	}
+
+	res, err := s.ms.UrlUpload(d.FunctionName, d.FunctionEnv, d.FunctionThreads, d.FunctionURL, d.SubFolder, envs)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
