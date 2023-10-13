@@ -9,6 +9,7 @@ RUN npm cache add express
 
 COPY . .
 RUN npm install express
+RUN npm install body-parser
 RUN npm install ./fn
 
 CMD [ "node", "functionhandler.js" ]
