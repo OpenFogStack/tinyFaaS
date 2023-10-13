@@ -338,6 +338,100 @@ class TestEcho(TinyFaaSTest):
         self.assertEqual(response.response, payload)
 
 
+class TestEchoJS(TinyFaaSTest):
+    fn = ""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super(TestEchoJS, cls).setUpClass()
+        cls.fn = startFunction(path.join(fn_path, "echo-js"), "echojs", "nodejs", 1)
+
+    def setUp(self) -> None:
+        super(TestEchoJS, self).setUp()
+        self.fn = TestEchoJS.fn
+
+    def test_invoke_http(self) -> None:
+        """invoke a function"""
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        req = urllib.request.Request(
+            f"http://{self.host}:{self.http_port}/{self.fn}",
+            data=payload.encode("utf-8"),
+        )
+
+        res = urllib.request.urlopen(req, timeout=10)
+
+        # check the response
+        self.assertEqual(res.status, 200)
+        self.assertEqual(res.read().decode("utf-8"), payload)
+
+        return
+
+    def test_invoke_coap(self) -> None:
+        """invoke a function with CoAP"""
+
+        try:
+            import asyncio
+            import aiocoap
+        except ImportError:
+            self.skipTest(
+                "aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt"
+            )
+            return
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        msg = aiocoap.Message(
+            code=aiocoap.GET,
+            uri=f"coap://{self.host}:{self.coap_port}/{self.fn}",
+            payload=payload.encode("utf-8"),
+        )
+
+        async def main() -> aiocoap.Message:
+            protocol = await aiocoap.Context.create_client_context()
+            response = await protocol.request(msg).response
+            await protocol.shutdown()
+            return response
+
+        response = asyncio.run(main())
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.code, aiocoap.CONTENT)
+        self.assertEqual(response.payload.decode("utf-8"), payload)
+
+        return
+
+    def test_invoke_grpc(self) -> None:
+        """invoke a function"""
+        try:
+            import grpc
+        except ImportError:
+            self.skipTest(
+                "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
+            )
+            return
+
+        sys.path.append(grpc_api_path)
+
+        import tinyfaas_pb2
+        import tinyfaas_pb2_grpc
+
+        # make a request to the function with a payload
+        payload = "Hello World!"
+
+        with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
+            stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload)
+            )
+
+        self.assertIsNotNone(response)
+        self.assertEqual(response.response, payload)
+
+
 class TestBinary(TinyFaaSTest):
     fn = ""
 
