@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"embed"
 	"fmt"
 	"io"
 	"log"
@@ -22,6 +23,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/google/uuid"
 )
+
+//go:embed runtimes
+var runtimes embed.FS
 
 const (
 	TmpDir           = "./tmp"
@@ -93,11 +97,13 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 	}
 
 	// copy Docker stuff into folder
-	// cp ./runtimes/<env>/* <folder>
-	err = util.CopyAll(path.Join("./runtimes", dh.env), dh.filePath)
+	// cp runtimes/<env>/* <folder>
+
+	err = util.CopyDirFromEmbed(runtimes, path.Join("runtimes", dh.env), dh.filePath)
 	if err != nil {
 		return nil, err
 	}
+
 	log.Println("copied runtime files to folder", dh.filePath)
 
 	// copy function into folder
