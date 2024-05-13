@@ -3,17 +3,23 @@ PKG := "github.com/OpenFogStack/$(PROJECT_NAME)"
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v /ext/ | grep -v _test.go)
 TEST_DIR := ./test
 
+OS=$(shell go env GOOS)
+ARCH=$(shell go env GOARCH)
+
 .PHONY: all build start clean
 
 all: build clean start
 
-build: manager rproxy
+build: tinyfaas-${OS}-${ARCH}
 
-manager rproxy: $(GO_FILES)
-	@go build -o $@ -v $(PKG)/cmd/$@
+cmd/manager/rproxy-%.bin: $(GO_FILES)
+	GOOS=${OS} GOARCH=${ARCH} go build -o $@ -v $(PKG)/cmd/rproxy
 
-start: manager rproxy
-	./manager
+tinyfaas-%: cmd/manager/rproxy-%.bin $(GO_FILES)
+	GOOS=${OS} GOARCH=${ARCH} go build -o $@ -v $(PKG)/cmd/manager
+
+start: tinyfaas-${OS}-${ARCH}
+	./$<
 
 test: build ${TEST_DIR}/test_all.py
 	@python3 ${TEST_DIR}/test_all.py

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"strconv"
 	"strings"
 
@@ -22,7 +24,6 @@ const (
 	ConfigPort          = 8080
 	RProxyConfigPort    = 8081
 	RProxyListenAddress = ""
-	RProxyBin           = "./rproxy"
 )
 
 type server struct {
@@ -100,7 +101,25 @@ func main() {
 	}
 
 	log.Println("rproxy args:", rproxyArgs)
-	c := exec.Command(RProxyBin, rproxyArgs...)
+
+	// unpack the rproxy binary in a temporary directory
+	rProxyDir := path.Join(os.TempDir(), id)
+
+	err := os.MkdirAll(rProxyDir, 0755)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = os.WriteFile(path.Join(rProxyDir, "rproxy.bin"), RProxyBin, 0755)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer os.RemoveAll(rProxyDir)
+
+	c := exec.Command(path.Join(rProxyDir, "rproxy.bin"), rproxyArgs...)
 
 	stdout, err := c.StdoutPipe()
 	if err != nil {

@@ -1,5 +1,5 @@
-manager
-rproxy
+tinyfaas-*
+cmd/manager/rproxy-*.bin
 tmp/
 
 # Created by https://www.toptal.com/developers/gitignore/api/go,node,python,visualstudiocode,macos
