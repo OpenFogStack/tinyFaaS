@@ -215,7 +215,7 @@ class TestSieve(TinyFaaSTest):
 
         try:
             import asyncio
-            import aiocoap
+            import aiocoap  # type: ignore
         except ImportError:
             self.skipTest(
                 "aiocoap is not installed -- if you want to run CoAP tests, install the dependencies in requirements.txt"
@@ -242,7 +242,7 @@ class TestSieve(TinyFaaSTest):
     def test_invoke_grpc(self) -> None:
         """invoke a function"""
         try:
-            import grpc
+            import grpc  # type: ignore
         except ImportError:
             self.skipTest(
                 "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
