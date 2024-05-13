@@ -43,10 +43,28 @@ def setUpModule() -> None:
 
         global tf_process
 
+        # find architecture and operating system
+        uname = os.uname()
+        if uname.machine == "x86_64":
+            arch = "amd64"
+        elif uname.machine == "arm64":
+            arch = "arm64"
+        else:
+            raise Exception(f"Unsupported architecture: {uname.machine}")
+
+        if uname.sysname == "Linux":
+            os_name = "linux"
+        elif uname.sysname == "Darwin":
+            os_name = "darwin"
+        else:
+            raise Exception(f"Unsupported operating system: {uname.sysname}")
+
+        tf_binary = path.join(src_path, f"tinyfaas-{os_name}-{arch}")
+
         # os.makedirs(path.join(src_path, "tmp"), exist_ok=True)
         with open(path.join(".", "tf_test.out"), "w") as f:
             tf_process = subprocess.Popen(
-                ["./manager"],
+                [tf_binary],
                 cwd=src_path,
                 env=env,
                 stdout=f,
@@ -65,7 +83,7 @@ def setUpModule() -> None:
             break
         except urllib.error.HTTPError:
             break
-        except Exception as e:
+        except Exception:
             continue
     # wait for tinyfaas to start
     while True:
@@ -76,7 +94,7 @@ def setUpModule() -> None:
             break
         except urllib.error.HTTPError:
             break
-        except Exception as e:
+        except Exception:
             continue
 
     return
