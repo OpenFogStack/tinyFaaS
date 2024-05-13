@@ -26,7 +26,9 @@ if __name__ == "__main__":
             return
 
         def do_POST(self) -> None:
-            d: typing.Optional[str] = self.rfile.read(int(self.headers["Content-Length"])).decode("utf-8")
+            d: typing.Optional[str] = self.rfile.read(
+                int(self.headers["Content-Length"])
+            ).decode("utf-8")
             if d == "":
                 d = None
 
@@ -43,5 +45,5 @@ if __name__ == "__main__":
                 self.wfile.write(str(e).encode("utf-8"))
                 return
 
-    with socketserver.TCPServer(("", 8000), tinyFaaSFNHandler) as httpd:
+    with socketserver.ThreadingTCPServer(("", 8000), tinyFaaSFNHandler) as httpd:
         httpd.serve_forever()
