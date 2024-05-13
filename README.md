@@ -61,7 +61,7 @@ Running tinyFaaS on Windows computers (native or through WSL) is probably possib
 Start tinyFaaS with:
 
 ```sh
-make
+make start
 ```
 
 The reverse proxy will be started automatically.
