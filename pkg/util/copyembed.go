@@ -93,12 +93,3 @@ func CopyDirFromEmbed(src embed.FS, srcPath string, dstPath string) (err error) 
 	return
 
 }
-
-// func CopyAllFromEmbed(src embed.FS, dst string) (err error) {
-// 	err = CopyDirFromEmbed(src, ".", dst)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	return
-// }

@@ -1,5 +1,5 @@
-//go:build linux && armv7
-// +build linux,armv7
+//go:build linux && arm
+// +build linux,arm
 
 package main
 

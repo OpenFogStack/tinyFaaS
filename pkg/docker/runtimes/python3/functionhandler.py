@@ -6,7 +6,7 @@ import socketserver
 
 if __name__ == "__main__":
     try:
-        import fn
+        import fn  # type: ignore
     except ImportError:
         raise ImportError("Failed to import fn.py")
 
@@ -36,7 +36,9 @@ if __name__ == "__main__":
                 res = fn.fn(d)
                 self.send_response(200)
                 self.end_headers()
-                self.wfile.write(res.encode("utf-8"))
+                if res is not None:
+                    self.wfile.write(res.encode("utf-8"))
+
                 return
             except Exception as e:
                 print(e)
