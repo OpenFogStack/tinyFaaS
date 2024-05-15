@@ -24,6 +24,7 @@ src_path = "."
 fn_path = path.join(src_path, "test", "fns")
 script_path = path.join(src_path, "scripts")
 grpc_api_path = path.join(src_path, "pkg", "grpc", "tinyfaas")
+sys.path.append(grpc_api_path)
 
 
 def setUpModule() -> None:
@@ -247,9 +248,6 @@ class TestSieve(TinyFaaSTest):
             self.skipTest(
                 "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
             )
-            return
-
-        sys.path.append(grpc_api_path)
 
         import tinyfaas_pb2
         import tinyfaas_pb2_grpc
@@ -336,9 +334,6 @@ class TestEcho(TinyFaaSTest):
             self.skipTest(
                 "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
             )
-            return
-
-        sys.path.append(grpc_api_path)
 
         import tinyfaas_pb2
         import tinyfaas_pb2_grpc
@@ -430,9 +425,6 @@ class TestEchoJS(TinyFaaSTest):
             self.skipTest(
                 "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
             )
-            return
-
-        sys.path.append(grpc_api_path)
 
         import tinyfaas_pb2
         import tinyfaas_pb2_grpc
@@ -526,9 +518,6 @@ class TestBinary(TinyFaaSTest):
             self.skipTest(
                 "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
             )
-            return
-
-        sys.path.append(grpc_api_path)
 
         import tinyfaas_pb2
         import tinyfaas_pb2_grpc
