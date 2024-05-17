@@ -13,14 +13,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
-	"github.com/OpenFogStack/tinyFaaS/pkg/util"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/google/uuid"
+
+	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
+	"github.com/OpenFogStack/tinyFaaS/pkg/util"
 )
 
 const (
@@ -227,13 +228,13 @@ func (dh *dockerHandler) Start() error {
 	// docker start <container>
 
 	wg := sync.WaitGroup{}
-	for _, container := range dh.containers {
+	for _, c := range dh.containers {
 		wg.Add(1)
 		go func(c string) {
 			err := dh.client.ContainerStart(
 				context.Background(),
 				c,
-				types.ContainerStartOptions{},
+				container.StartOptions{},
 			)
 			wg.Done()
 			if err != nil {
@@ -242,7 +243,7 @@ func (dh *dockerHandler) Start() error {
 			}
 
 			log.Println("started container", c)
-		}(container)
+		}(c)
 	}
 	wg.Wait()
 
@@ -329,7 +330,7 @@ func (dh *dockerHandler) Destroy() error {
 			err = dh.client.ContainerRemove(
 				context.Background(),
 				c,
-				types.ContainerRemoveOptions{},
+				container.RemoveOptions{},
 			)
 			wg.Done()
 			if err != nil {
@@ -374,11 +375,11 @@ func (dh *dockerHandler) Logs() (io.Reader, error) {
 	// get container logs
 	// docker logs <container>
 	var logs bytes.Buffer
-	for _, container := range dh.containers {
+	for _, c := range dh.containers {
 		l, err := dh.client.ContainerLogs(
 			context.Background(),
-			container,
-			types.ContainerLogsOptions{
+			c,
+			container.LogsOptions{
 				ShowStdout: true,
 				ShowStderr: true,
 				Timestamps: true,
@@ -404,7 +405,7 @@ func (dh *dockerHandler) Logs() (io.Reader, error) {
 		scanner := bufio.NewScanner(&lstdout)
 
 		for scanner.Scan() {
-			logs.WriteString(fmt.Sprintf("function=%s handler=%s %s\n", dh.name, container, scanner.Text()))
+			logs.WriteString(fmt.Sprintf("function=%s handler=%s %s\n", dh.name, c, scanner.Text()))
 		}
 
 		if err := scanner.Err(); err != nil {
