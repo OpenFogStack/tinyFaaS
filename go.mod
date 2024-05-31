@@ -1,8 +1,6 @@
 module github.com/OpenFogStack/tinyFaaS
 
-go 1.21
-
-toolchain go1.22.3
+go 1.22
 
 require (
 	github.com/docker/docker v26.1.2+incompatible
