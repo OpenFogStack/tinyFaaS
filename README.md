@@ -48,7 +48,7 @@ Once a function is deployed to tinyFaaS, function handlers are created automatic
 
 Before you get started, make sure you have the following dependencies installed:
 
-- Go (>=v1.20) to compile management service and reverse proxy
+- Go (>=v1.22) to compile management service and reverse proxy
 - Docker (>=v24)
 - Make
 
