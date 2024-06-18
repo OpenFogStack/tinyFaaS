@@ -141,6 +141,7 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 	err = ms.functionHandlers[name].Start()
 
 	if err != nil {
+		// container did not start properly...
 		return "", err
 	}
 
