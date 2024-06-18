@@ -15,6 +15,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -140,6 +142,7 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 		return nil, err
 	}
 
+	defer r.Body.Close()
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 		log.Println(scanner.Text())
@@ -152,8 +155,7 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 	network, err := db.client.NetworkCreate(
 		context.Background(),
 		dh.uniqueName,
-		types.NetworkCreate{
-			CheckDuplicate: true,
+		network.CreateOptions{
 			Labels: map[string]string{
 				"tinyfaas-function": dh.name,
 				"tinyFaaS":          db.tinyFaaSID,
@@ -265,12 +267,26 @@ func (dh *dockerHandler) Start() error {
 
 	// wait for the containers to be ready
 	// curl http://<container>:8000/ready
-	for _, ip := range dh.handlerIPs {
+	for i, ip := range dh.handlerIPs {
 		log.Println("waiting for container", ip, "to be ready")
 		maxRetries := 10
 		for {
 			maxRetries--
 			if maxRetries == 0 {
+				// container did not start properly!
+				// give people some logs to look at
+				log.Printf("container %s (ip %s) not ready after 10 retries", dh.containers[i], ip)
+				log.Printf("getting logs for container %s", dh.containers[i])
+				logs, err := dh.getContainerLogs(dh.containers[i])
+
+				if err != nil {
+					return fmt.Errorf("container %s not ready after 10 retries, error encountered when getting logs %s", ip, err)
+				}
+
+				log.Println(logs)
+
+				log.Printf("end of logs for container %s", dh.containers[i])
+
 				return fmt.Errorf("container %s not ready after 10 retries", ip)
 			}
 
@@ -359,7 +375,7 @@ func (dh *dockerHandler) Destroy() error {
 	_, err = dh.client.ImageRemove(
 		context.Background(),
 		dh.uniqueName,
-		types.ImageRemoveOptions{},
+		image.RemoveOptions{},
 	)
 
 	if err != nil {
@@ -371,46 +387,71 @@ func (dh *dockerHandler) Destroy() error {
 	return nil
 }
 
+func (dh *dockerHandler) getContainerLogs(c string) (string, error) {
+	logs := ""
+
+	l, err := dh.client.ContainerLogs(
+		context.Background(),
+		c,
+		container.LogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+			Timestamps: true,
+		},
+	)
+	if err != nil {
+		return logs, err
+	}
+
+	var lstdout bytes.Buffer
+	var lstderr bytes.Buffer
+
+	_, err = stdcopy.StdCopy(&lstdout, &lstderr, l)
+
+	l.Close()
+
+	if err != nil {
+		return logs, err
+	}
+
+	// add a prefix to each line
+	// function=<function> handler=<handler> <line>
+	scanner := bufio.NewScanner(&lstdout)
+
+	for scanner.Scan() {
+		logs += fmt.Sprintf("function=%s handler=%s %s\n", dh.name, c, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return logs, err
+	}
+
+	// same for stderr
+	scanner = bufio.NewScanner(&lstderr)
+
+	for scanner.Scan() {
+		logs += fmt.Sprintf("function=%s handler=%s %s\n", dh.name, c, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return logs, err
+	}
+
+	return logs, nil
+}
+
 func (dh *dockerHandler) Logs() (io.Reader, error) {
 	// get container logs
 	// docker logs <container>
 	var logs bytes.Buffer
+
 	for _, c := range dh.containers {
-		l, err := dh.client.ContainerLogs(
-			context.Background(),
-			c,
-			container.LogsOptions{
-				ShowStdout: true,
-				ShowStderr: true,
-				Timestamps: true,
-			},
-		)
+		l, err := dh.getContainerLogs(c)
 		if err != nil {
 			return nil, err
 		}
 
-		var lstdout bytes.Buffer
-		var lstderr bytes.Buffer
-
-		_, err = stdcopy.StdCopy(&lstdout, &lstderr, l)
-
-		l.Close()
-
-		if err != nil {
-			return nil, err
-		}
-
-		// add a prefix to each line
-		// function=<function> handler=<handler> <line>
-		scanner := bufio.NewScanner(&lstdout)
-
-		for scanner.Scan() {
-			logs.WriteString(fmt.Sprintf("function=%s handler=%s %s\n", dh.name, c, scanner.Text()))
-		}
-
-		if err := scanner.Err(); err != nil {
-			return nil, err
-		}
+		logs.WriteString(l)
 	}
 
 	return &logs, nil

@@ -20,7 +20,7 @@ start: tinyfaas-${OS}-${ARCH}
 	./$<
 
 .PHONY: test
-test: build ${TEST_DIR}/test_all.py
+test: build ${TEST_DIR}/test_all.py pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/tinyfaas/tinyfaas_pb2.pyi pkg/grpc/tinyfaas/tinyfaas_pb2_grpc.py
 	@python3 ${TEST_DIR}/test_all.py
 
 .PHONY: clean
