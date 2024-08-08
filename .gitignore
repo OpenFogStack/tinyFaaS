@@ -1,6 +1,8 @@
 tinyfaas-*
 cmd/manager/rproxy-*.bin
 tmp/
+pkg/docker/runtimes-*/
+
 # Created by https://www.toptal.com/developers/gitignore/api/go,node,macos,python,visualstudiocode,intellij
 # Edit at https://www.toptal.com/developers/gitignore?templates=go,node,macos,python,visualstudiocode,intellij
 
