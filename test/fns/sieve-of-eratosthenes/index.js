@@ -1,5 +1,7 @@
 
 module.exports = (req, res) => {
+  const data = req.body;
+  const headers = req.headers; // headers from the http request or GRPC metadata
   const max = 10000;
   let sieve = [], i, j, primes = [];
   for (i = 2; i <= max; ++i) {

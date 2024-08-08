@@ -2,6 +2,9 @@
 
 import typing
 
-def fn(input: typing.Optional[str]) -> typing.Optional[str]:
+def fn(input: typing.Optional[str], headers: typing.Optional[typing.Dict[str, str]]) -> typing.Optional[str]:
     """echo the input"""
+    if headers is not None:
+        print ("headers: " + str(headers))
+
     return input

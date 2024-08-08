@@ -59,7 +59,7 @@ func (r *RProxy) Del(name string) error {
 	return nil
 }
 
-func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) {
+func (r *RProxy) Call(name string, payload []byte, async bool, headers map[string]string) (Status, []byte) {
 
 	handler, ok := r.hosts[name]
 
@@ -79,14 +79,18 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 	if async {
 		log.Printf("async request accepted")
 		go func() {
-			resp, err := http.Post(fmt.Sprintf("http://%s:8000/fn", h), "application/binary", bytes.NewBuffer(payload))
-
+			req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
 			if err != nil {
 				return
 			}
-
+			for k, v := range headers {
+				req.Header.Set(k, v)
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				return
+			}
 			resp.Body.Close()
-
 			log.Printf("async request finished")
 		}()
 		return StatusAccepted, nil
@@ -94,8 +98,15 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 
 	// call function and return results
 	log.Printf("sync request starting")
-	resp, err := http.Post(fmt.Sprintf("http://%s:8000/fn", h), "application/binary", bytes.NewBuffer(payload))
-
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
+	if err != nil {
+		log.Print(err)
+		return StatusError, nil
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	resp, err := http.DefaultClient.Do(req) // send the request
 	if err != nil {
 		log.Print(err)
 		return StatusError, nil
