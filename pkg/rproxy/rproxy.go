@@ -75,11 +75,11 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 
 	log.Printf("chosen handler: %s", h)
 
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
 	// call function
 	if async {
 		log.Printf("async request accepted")
 		go func() {
-			req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
 			if err != nil {
 				return
 			}
@@ -98,7 +98,7 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 
 	// call function and return results
 	log.Printf("sync request starting")
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
+
 	if err != nil {
 		log.Print(err)
 		return StatusError, nil

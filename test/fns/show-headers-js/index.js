@@ -1,9 +1,9 @@
 
 module.exports = (req, res) => {
-  const response = req.body;
+  const body = req.body;
   const headers = req.headers; // headers from the http request or GRPC metadata
 
-  console.log(response);
+  console.log("Headers:", headers);
 
-  res.send(response); 
+  res.send(headers);
 }

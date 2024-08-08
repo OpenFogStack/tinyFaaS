@@ -24,16 +24,16 @@ func (gs *GRPCServer) Request(ctx context.Context, d *tinyfaas.Data) (*tinyfaas.
 
 	// Extract metadata from the gRPC context
 	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, fmt.Errorf("failed to extract metadata from context")
-	}
-
-	// Convert metadata to map[string]string
 	headers := make(map[string]string)
-	for k, v := range md {
-		if len(v) > 0 {
-			headers[k] = v[0]
+	if ok {
+		// Convert metadata to map[string]string
+		for k, v := range md {
+			if len(v) > 0 {
+				headers[k] = v[0]
+			}
 		}
+	} else {
+		log.Print("failed to extract metadata from context, using empty headers GRPC request")
 	}
 
 	s, res := gs.r.Call(d.FunctionIdentifier, []byte(d.Data), false, headers)
