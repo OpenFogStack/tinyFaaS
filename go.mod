@@ -3,7 +3,7 @@ module github.com/OpenFogStack/tinyFaaS
 go 1.22
 
 require (
-	github.com/docker/docker v27.0.0+incompatible
+	github.com/docker/docker v27.1.1+incompatible
 	github.com/google/uuid v1.6.0
 	github.com/pfandzelter/go-coap v0.1.0
 	google.golang.org/grpc v1.64.0
