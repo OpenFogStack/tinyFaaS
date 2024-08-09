@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"sync"
 )
 
@@ -76,18 +77,21 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 	log.Printf("chosen handler: %s", h)
 
 	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
-	// call function
+	if err != nil {
+		log.Print(err)
+		return StatusError, nil
+	}
+	for k, v := range headers {
+		cleanedKey := cleanHeaderKey(k) // remove special chars from key
+		req.Header.Set(cleanedKey, v)
+	}
+
+	// call function asynchronously
 	if async {
 		log.Printf("async request accepted")
 		go func() {
-			if err != nil {
-				return
-			}
-			for k, v := range headers {
-				req.Header.Set(k, v)
-			}
-			resp, err := http.DefaultClient.Do(req)
-			if err != nil {
+			resp, err2 := http.DefaultClient.Do(req)
+			if err2 != nil {
 				return
 			}
 			resp.Body.Close()
@@ -98,15 +102,7 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 
 	// call function and return results
 	log.Printf("sync request starting")
-
-	if err != nil {
-		log.Print(err)
-		return StatusError, nil
-	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	resp, err := http.DefaultClient.Do(req) // send the request
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Print(err)
 		return StatusError, nil
@@ -125,4 +121,10 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 	// log.Printf("have response for sync request: %s", res_body)
 
 	return StatusOK, res_body
+}
+func cleanHeaderKey(key string) string {
+	// a regex pattern to match special characters
+	re := regexp.MustCompile(`[:()<>@,;:\"/[\]?={} \t]`)
+	// Replace special characters with an empty string
+	return re.ReplaceAllString(key, "")
 }

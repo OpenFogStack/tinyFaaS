@@ -48,7 +48,7 @@ def setUpModule() -> None:
         uname = os.uname()
         if uname.machine == "x86_64":
             arch = "amd64"
-        elif uname.machine == "arm64":
+        elif uname.machine == "arm64" or uname.machine == "aarch64":
             arch = "arm64"
         else:
             raise Exception(f"Unsupported architecture: {uname.machine}")
