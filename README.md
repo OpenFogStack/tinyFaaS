@@ -51,6 +51,7 @@ Before you get started, make sure you have the following dependencies installed:
 - Go (>=v1.22) to compile management service and reverse proxy
 - Docker (>=v24)
 - Make
+- a writable directory (tinyFaaS writes temporary files to a `./tmp` directory)
 
 Note that tinyFaaS is intended for Linux hosts (`x86_64` and `arm64`).
 Due to limitations of Docker Desktop for Mac, installing and running [`docker-mac-net-connect`](https://github.com/chipmk/docker-mac-net-connect) is necessary to run tinyFaaS on macOS hosts.
@@ -88,14 +89,13 @@ Additionally, we provide scripts to read logs from your function and to wipe all
 ### Writing Functions
 
 This tinyFaaS prototype only supports functions written for NodeJS 20, Python 3.9, and binary functions.
-HTTP headers and GRPC Metadata are accessible in NodeJS and Python functions as key values. Check the example functions below for more information.
+A good place to get started with writing functions is the selection of test functions in [`./test/fns`](./test/fns/).
+HTTP headers and GRPC Metadata are accessible in NodeJS and Python functions as key values. Check the "show-headers" test functions for more information.
 
 #### NodeJS 20
 
 Your function must be supplied as a Node module with the name `fn` that exports a single function that takes the `req` and `res` parameters for request and response, respectively.
 `res` supports the `send()` function that has one parameter, a string that is passed to the client as-is.
-
-To get started with functions, use the example _sieve of Eratosthenes_ function in [`./test/fns/sieve-of-eratosthenes`](./tests/fns/sieve-of-eratosthenes).
 
 #### Python 3.9
 
@@ -104,16 +104,12 @@ This method must accept a string as an input (that can also be `None`) and must 
 You may also provide a `requirements.txt` file from which dependencies will be installed alongside your function.
 Any other data you provide will be available.
 
-To get started with this type of function, use the example `echo` function in [`./test/fns/echo`](./tests/fns/echo).
-
 #### Binary
 
 Your function must be provided as a `fn.sh` shell script that is invoked for every function call.
 This shell script may also call other binaries as needed.
 Input data is provided from `stdin`.
 Output responses should be provided on `stdout`.
-
-To get started with this type of function, use the example `echo-binary` function in [`./test/fns/echo-binary`](./tests/fns/echo-binary).
 
 ### Calling Functions
 
@@ -184,4 +180,47 @@ For example, to use `6000` as the port for the CoAP and deactivate GRPC, run the
 
 ```bash
 docker run --env COAP_PORT=6000 --env GRPC_PORT=-1 -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
+```
+
+### Tests
+
+The tests in [`./test`](./test) test the end-to-end functionality of tinyFaaS and are expected to complete successfully.
+We use these tests during development to ensure no patches break any functionality.
+The tests can also serve as documentation on the expected behavior of tinyFaaS.
+
+Running the tests requires:
+
+- Python >3.10 with the `venv` module
+- a tinyFaaS binary built for your host
+
+Create a virtual environment for Python and install the necessary dependencies for CoAP and gRPC:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install -r test/requirements.txt
+```
+
+If you do not install these requirements, test runs are limited to invocations with HTTP.
+
+Run the tests with:
+
+```sh
+$ make test
+.............
+----------------------------------------------------------------------
+Ran 13 tests in 28.063s
+
+OK
+```
+
+Tests will output a `.` (dot) for successful tests and `E` or `F` for failed tests.
+tinyFaaS output will be written to `tf_test.out`.
+
+On macOS, [`docker-mac-net-connect`](https://github.com/chipmk/docker-mac-net-connect) is necessary to run tinyFaaS.
+There is a [known issue in `docker-mac-net-connect`](https://github.com/chipmk/docker-mac-net-connect/issues/36) that silently breaks the tunnel when Docker Desktop enters its resource saver mode.
+If you find that tinyFaaS does not start properly on your macOS host, try restarting the tunnel:
+
+```sh
+sudo brew services restart docker-mac-net-connect
 ```
