@@ -2,6 +2,7 @@
 
 import unittest
 
+import json
 import os
 import os.path as path
 import signal
@@ -533,6 +534,136 @@ class TestBinary(TinyFaaSTest):
 
         self.assertIsNotNone(response)
         self.assertEqual(response.response, payload)
+
+class TestShowHeadersJS(TinyFaaSTest):
+    fn = ""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super(TestShowHeadersJS, cls).setUpClass()
+        cls.fn = startFunction(path.join(fn_path, "show-headers-js"), "headersjs", "nodejs", 1)
+
+    def setUp(self) -> None:
+        super(TestShowHeadersJS, self).setUp()
+        self.fn = TestShowHeadersJS.fn
+
+    def test_invoke_http(self) -> None:
+        """invoke a function"""
+
+        # make a request to the function with a custom headers
+        req = urllib.request.Request(
+            f"http://{self.host}:{self.http_port}/{self.fn}",
+            headers={"lab": "scalable_software_systems_group"},
+        )
+
+        res = urllib.request.urlopen(req, timeout=10)
+
+        # check the response
+        self.assertEqual(res.status, 200)
+        response_body = res.read().decode("utf-8")
+        response_json = json.loads(response_body)
+        self.assertIn("lab", response_json)
+        self.assertEqual(response_json["lab"], "scalable_software_systems_group") # custom header
+        self.assertIn("user-agent", response_json)
+        self.assertEqual(response_json["user-agent"], "Python-urllib/3.11") # python client
+
+        return
+
+#     def test_invoke_coap(self) -> None: # CoAP does not support headers
+
+
+    def test_invoke_grpc(self) -> None:
+        """invoke a function"""
+        try:
+            import grpc
+        except ImportError:
+            self.skipTest(
+                "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
+            )
+
+        import tinyfaas_pb2
+        import tinyfaas_pb2_grpc
+
+        # make a request to the function with a payload
+        payload = ""
+        metadata = (("lab", "scalable_software_systems_group"),)
+
+        with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
+            stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload), metadata=metadata
+            )
+
+        response_json = json.loads(response.response)
+        self.assertIn("lab", response_json)
+        self.assertEqual(response_json["lab"], "scalable_software_systems_group") # custom header
+        self.assertIn("user-agent", response_json)
+        self.assertIn("grpc-python/1.64.1", response_json["user-agent"]) # client header
+
+class TestShowHeaders(TinyFaaSTest): # Note: In Python, the http.server module (and many other HTTP libraries) automatically capitalizes the first character of each word in the header keys.
+    fn = ""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super(TestShowHeaders, cls).setUpClass()
+        cls.fn = startFunction(path.join(fn_path, "show-headers"), "headers", "python3", 1)
+
+    def setUp(self) -> None:
+        super(TestShowHeaders, self).setUp()
+        self.fn = TestShowHeaders.fn
+
+    def test_invoke_http(self) -> None:
+        """invoke a function"""
+
+        # make a request to the function with a custom headers
+        req = urllib.request.Request(
+            f"http://{self.host}:{self.http_port}/{self.fn}",
+            headers={"Lab": "scalable_software_systems_group"},
+        )
+
+        res = urllib.request.urlopen(req, timeout=10)
+
+        # check the response
+        self.assertEqual(res.status, 200)
+        response_body = res.read().decode("utf-8")
+        response_json = json.loads(response_body)
+        self.assertIn("Lab", response_json)
+        self.assertEqual(response_json["Lab"], "scalable_software_systems_group") # custom header
+        self.assertIn("User-Agent", response_json)
+        self.assertIn("Python-urllib", response_json["User-Agent"]) # python client
+
+        return
+
+#     def test_invoke_coap(self) -> None: # CoAP does not support headers, instead you have
+
+    def test_invoke_grpc(self) -> None:
+        """invoke a function"""
+        try:
+            import grpc
+        except ImportError:
+            self.skipTest(
+                "grpc is not installed -- if you want to run gRPC tests, install the dependencies in requirements.txt"
+            )
+
+        import tinyfaas_pb2
+        import tinyfaas_pb2_grpc
+
+        # make a request to the function with a payload
+        payload = ""
+        metadata = (("lab", "scalable_software_systems_group"),)
+
+        with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
+            stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
+            response = stub.Request(
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload), metadata=metadata
+            )
+
+        response_json = json.loads(response.response)
+
+        self.assertIn("Lab", response_json)
+        self.assertEqual(response_json["Lab"], "scalable_software_systems_group") # custom header
+        self.assertIn("User-Agent", response_json)
+        self.assertIn("grpc-python", response_json["User-Agent"]) # client header
 
 
 if __name__ == "__main__":
