@@ -535,13 +535,16 @@ class TestBinary(TinyFaaSTest):
         self.assertIsNotNone(response)
         self.assertEqual(response.response, payload)
 
+
 class TestShowHeadersJS(TinyFaaSTest):
     fn = ""
 
     @classmethod
     def setUpClass(cls) -> None:
         super(TestShowHeadersJS, cls).setUpClass()
-        cls.fn = startFunction(path.join(fn_path, "show-headers-js"), "headersjs", "nodejs", 1)
+        cls.fn = startFunction(
+            path.join(fn_path, "show-headers-js"), "headersjs", "nodejs", 1
+        )
 
     def setUp(self) -> None:
         super(TestShowHeadersJS, self).setUp()
@@ -563,14 +566,15 @@ class TestShowHeadersJS(TinyFaaSTest):
         response_body = res.read().decode("utf-8")
         response_json = json.loads(response_body)
         self.assertIn("lab", response_json)
-        self.assertEqual(response_json["lab"], "scalable_software_systems_group") # custom header
+        self.assertEqual(
+            response_json["lab"], "scalable_software_systems_group"
+        )  # custom header
         self.assertIn("user-agent", response_json)
-        self.assertEqual(response_json["user-agent"], "Python-urllib/3.11") # python client
+        self.assertIn("Python-urllib", response_json["user-agent"])  # python client
 
         return
 
-#     def test_invoke_coap(self) -> None: # CoAP does not support headers
-
+    #     def test_invoke_coap(self) -> None: # CoAP does not support headers
 
     def test_invoke_grpc(self) -> None:
         """invoke a function"""
@@ -591,22 +595,30 @@ class TestShowHeadersJS(TinyFaaSTest):
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
             stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
             response = stub.Request(
-                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload), metadata=metadata
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload),
+                metadata=metadata,
             )
 
         response_json = json.loads(response.response)
         self.assertIn("lab", response_json)
-        self.assertEqual(response_json["lab"], "scalable_software_systems_group") # custom header
+        self.assertEqual(
+            response_json["lab"], "scalable_software_systems_group"
+        )  # custom header
         self.assertIn("user-agent", response_json)
-        self.assertIn("grpc-python/1.64.1", response_json["user-agent"]) # client header
+        self.assertIn("grpc-python", response_json["user-agent"])  # client header
 
-class TestShowHeaders(TinyFaaSTest): # Note: In Python, the http.server module (and many other HTTP libraries) automatically capitalizes the first character of each word in the header keys.
+
+class TestShowHeaders(
+    TinyFaaSTest
+):  # Note: In Python, the http.server module (and many other HTTP libraries) automatically capitalizes the first character of each word in the header keys.
     fn = ""
 
     @classmethod
     def setUpClass(cls) -> None:
         super(TestShowHeaders, cls).setUpClass()
-        cls.fn = startFunction(path.join(fn_path, "show-headers"), "headers", "python3", 1)
+        cls.fn = startFunction(
+            path.join(fn_path, "show-headers"), "headers", "python3", 1
+        )
 
     def setUp(self) -> None:
         super(TestShowHeaders, self).setUp()
@@ -628,13 +640,15 @@ class TestShowHeaders(TinyFaaSTest): # Note: In Python, the http.server module (
         response_body = res.read().decode("utf-8")
         response_json = json.loads(response_body)
         self.assertIn("Lab", response_json)
-        self.assertEqual(response_json["Lab"], "scalable_software_systems_group") # custom header
+        self.assertEqual(
+            response_json["Lab"], "scalable_software_systems_group"
+        )  # custom header
         self.assertIn("User-Agent", response_json)
-        self.assertIn("Python-urllib", response_json["User-Agent"]) # python client
+        self.assertIn("Python-urllib", response_json["User-Agent"])  # python client
 
         return
 
-#     def test_invoke_coap(self) -> None: # CoAP does not support headers, instead you have
+    #     def test_invoke_coap(self) -> None: # CoAP does not support headers, instead you have
 
     def test_invoke_grpc(self) -> None:
         """invoke a function"""
@@ -655,15 +669,18 @@ class TestShowHeaders(TinyFaaSTest): # Note: In Python, the http.server module (
         with grpc.insecure_channel(f"{self.host}:{self.grpc_port}") as channel:
             stub = tinyfaas_pb2_grpc.TinyFaaSStub(channel)
             response = stub.Request(
-                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload), metadata=metadata
+                tinyfaas_pb2.Data(functionIdentifier=self.fn, data=payload),
+                metadata=metadata,
             )
 
         response_json = json.loads(response.response)
 
         self.assertIn("Lab", response_json)
-        self.assertEqual(response_json["Lab"], "scalable_software_systems_group") # custom header
+        self.assertEqual(
+            response_json["Lab"], "scalable_software_systems_group"
+        )  # custom header
         self.assertIn("User-Agent", response_json)
-        self.assertIn("grpc-python", response_json["User-Agent"]) # client header
+        self.assertIn("grpc-python", response_json["User-Agent"])  # client header
 
 
 if __name__ == "__main__":
