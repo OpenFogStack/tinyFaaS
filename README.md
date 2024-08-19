@@ -90,6 +90,7 @@ Additionally, we provide scripts to read logs from your function and to wipe all
 
 This tinyFaaS prototype only supports functions written for NodeJS 20, Python 3.9, and binary functions.
 A good place to get started with writing functions is the selection of test functions in [`./test/fns`](./test/fns/).
+HTTP headers and GRPC Metadata are accessible in NodeJS and Python functions as key values. Check the "show-headers" test functions for more information.
 
 #### NodeJS 20
 

@@ -8,6 +8,8 @@ import (
 	"github.com/pfandzelter/go-coap"
 )
 
+const async = false
+
 func Start(r *rproxy.RProxy, listenAddr string) {
 
 	h := coap.FuncHandler(
@@ -17,8 +19,6 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 			log.Printf("is confirmable: %v", m.IsConfirmable())
 			log.Printf("path: %s", m.PathString())
 
-			async := false
-
 			p := m.PathString()
 
 			for p != "" && p[0] == '/' {
@@ -27,7 +27,7 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 
 			log.Printf("have request for path: %s (async: %v)", p, async)
 
-			s, res := r.Call(p, m.Payload, async)
+			s, res := r.Call(p, m.Payload, async, nil)
 
 			mes := &coap.Message{
 				Type:      coap.Acknowledgement,

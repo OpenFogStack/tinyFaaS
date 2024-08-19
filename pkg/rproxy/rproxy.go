@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"sync"
 )
 
@@ -59,7 +60,7 @@ func (r *RProxy) Del(name string) error {
 	return nil
 }
 
-func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) {
+func (r *RProxy) Call(name string, payload []byte, async bool, headers map[string]string) (Status, []byte) {
 
 	handler, ok := r.hosts[name]
 
@@ -75,18 +76,25 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 
 	log.Printf("chosen handler: %s", h)
 
-	// call function
+	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
+	if err != nil {
+		log.Print(err)
+		return StatusError, nil
+	}
+	for k, v := range headers {
+		cleanedKey := cleanHeaderKey(k) // remove special chars from key
+		req.Header.Set(cleanedKey, v)
+	}
+
+	// call function asynchronously
 	if async {
 		log.Printf("async request accepted")
 		go func() {
-			resp, err := http.Post(fmt.Sprintf("http://%s:8000/fn", h), "application/binary", bytes.NewBuffer(payload))
-
-			if err != nil {
+			resp, err2 := http.DefaultClient.Do(req)
+			if err2 != nil {
 				return
 			}
-
 			resp.Body.Close()
-
 			log.Printf("async request finished")
 		}()
 		return StatusAccepted, nil
@@ -94,8 +102,7 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 
 	// call function and return results
 	log.Printf("sync request starting")
-	resp, err := http.Post(fmt.Sprintf("http://%s:8000/fn", h), "application/binary", bytes.NewBuffer(payload))
-
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Print(err)
 		return StatusError, nil
@@ -114,4 +121,10 @@ func (r *RProxy) Call(name string, payload []byte, async bool) (Status, []byte) 
 	// log.Printf("have response for sync request: %s", res_body)
 
 	return StatusOK, res_body
+}
+func cleanHeaderKey(key string) string {
+	// a regex pattern to match special characters
+	re := regexp.MustCompile(`[:()<>@,;:\"/[\]?={} \t]`)
+	// Replace special characters with an empty string
+	return re.ReplaceAllString(key, "")
 }
