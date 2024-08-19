@@ -32,8 +32,11 @@ if __name__ == "__main__":
             if d == "":
                 d = None
 
+            # Read headers into a dictionary
+            headers: typing.Dict[str, str] = {k: v for k, v in self.headers.items()}
+
             try:
-                res = fn.fn(d)
+                res = fn.fn(d, headers)
                 self.send_response(200)
                 self.end_headers()
                 if res is not None:

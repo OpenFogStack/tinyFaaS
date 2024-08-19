@@ -12,7 +12,7 @@ module.exports = (req, res) => {
     }
   }
 
-  response = ("Found " + primes.length + " primes under " + max);
+  let response = ("Found " + primes.length + " primes under " + max);
 
   console.log(response);
 

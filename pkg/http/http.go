@@ -31,7 +31,12 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 			return
 		}
 
-		s, res := r.Call(p, req_body, async)
+		headers := make(map[string]string)
+		for k, v := range req.Header {
+			headers[k] = v[0]
+		}
+
+		s, res := r.Call(p, req_body, async, headers)
 
 		switch s {
 		case rproxy.StatusOK:
