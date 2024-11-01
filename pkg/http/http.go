@@ -21,7 +21,7 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 
 		async := req.Header.Get("X-tinyFaaS-Async") != ""
 
-		log.Printf("have request for path: %s (async: %v)", p, async)
+		// log.Printf("have request for path: %s (async: %v)", p, async)
 
 		req_body, err := io.ReadAll(req.Body)
 

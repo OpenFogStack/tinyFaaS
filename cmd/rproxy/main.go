@@ -7,6 +7,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"runtime/pprof"
 	"strings"
 
 	"github.com/OpenFogStack/tinyFaaS/pkg/coap"
@@ -16,6 +18,23 @@ import (
 )
 
 func main() {
+	// add cpu profile
+	f, e := os.Create("cpu.prof")
+
+	if e != nil {
+		log.Fatalf("could not create cpu profile: %s", e)
+	}
+
+	defer f.Close()
+
+	e = pprof.StartCPUProfile(f)
+
+	if e != nil {
+		log.Fatalf("could not start cpu profile: %s", e)
+	}
+
+	defer pprof.StopCPUProfile()
+
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetPrefix("rproxy: ")
 
@@ -63,6 +82,11 @@ func main() {
 	if listenAddr, ok := listenAddrs["grpc"]; ok {
 		log.Printf("starting grpc server on %s", listenAddr)
 		go grpc.Start(r, listenAddr)
+	}
+	// FastHTTP
+	if listenAddr, ok := listenAddrs["fasthttp"]; ok {
+		log.Printf("starting fasthttp server on %s", listenAddr)
+		go tfhttp.StartFastHTTP(r, listenAddr)
 	}
 
 	server := http.NewServeMux()
@@ -123,12 +147,21 @@ func main() {
 		}
 	})
 
-	log.Printf("listening on %s", rproxyListenAddress)
-	err := http.ListenAndServe(rproxyListenAddress, server)
+	go func() {
+		log.Printf("listening on %s", rproxyListenAddress)
+		err := http.ListenAndServe(rproxyListenAddress, server)
 
-	if err != nil {
-		log.Printf("%s", err)
-	}
+		if err != nil {
+			log.Printf("%s", err)
+		}
+	}()
+
+	s := make(chan os.Signal, 1)
+
+	signal.Notify(s, os.Interrupt)
+
+	<-s
 
 	log.Printf("exiting")
+	return
 }

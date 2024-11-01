@@ -7,13 +7,13 @@ const bodyParser = require("body-parser")
 const app = express();
 
 app.use(bodyParser.text({
-    type: function(req) {
+    type: function (req) {
         return 'text';
     }
 }));
 
 app.all("/health", (req, res) => {
-  return res.send("OK");
+    return res.send("OK");
 });
 app.all("/fn", handler);
 app.listen(8000);

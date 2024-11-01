@@ -9,6 +9,9 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
+	"time"
+
+	"github.com/valyala/fasthttp"
 )
 
 type Status uint32
@@ -22,12 +25,21 @@ const (
 
 type RProxy struct {
 	hosts map[string][]string
+	c     *fasthttp.Client
 	hl    sync.RWMutex
 }
 
 func New() *RProxy {
 	return &RProxy{
 		hosts: make(map[string][]string),
+		c: &fasthttp.Client{
+			MaxConnsPerHost:        256 * 1024,
+			DisablePathNormalizing: true,
+			// increase DNS cache time to an hour instead of default minute
+			DialTimeout: (&fasthttp.TCPDialer{
+				Concurrency: 0,
+			}).DialTimeout,
+		},
 	}
 }
 
@@ -44,7 +56,11 @@ func (r *RProxy) Add(name string, ips []string) error {
 	// 	return fmt.Errorf("function already exists")
 	// }
 
+	for i, ip := range ips {
+		ips[i] = fmt.Sprintf("http://%s:8000/fn", ip)
+	}
 	r.hosts[name] = ips
+
 	return nil
 }
 
@@ -60,7 +76,7 @@ func (r *RProxy) Del(name string) error {
 	return nil
 }
 
-func (r *RProxy) Call(name string, payload []byte, async bool, headers map[string]string) (Status, []byte) {
+func (r *RProxy) fastCall(name string, payload []byte, async bool, headers map[string]string) (Status, []byte) {
 
 	handler, ok := r.hosts[name]
 
@@ -69,14 +85,63 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 		return StatusNotFound, nil
 	}
 
-	log.Printf("have handlers: %s", handler)
+	// log.Printf("have handlers: %s", handler)
 
 	// choose random handler
 	h := handler[rand.Intn(len(handler))]
 
-	log.Printf("chosen handler: %s", h)
+	// log.Printf("chosen handler: %s", h)
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("http://%s:8000/fn", h), bytes.NewBuffer(payload))
+	// req := fasthttp.AcquireRequest()
+	req := &fasthttp.Request{}
+	req.SetRequestURI(h)
+	req.Header.SetMethod(fasthttp.MethodPost)
+	req.Header.SetContentTypeBytes([]byte("application/octet-stream"))
+	req.SetBodyRaw(payload)
+
+	// resp := fasthttp.AcquireResponse()
+	resp := &fasthttp.Response{}
+
+	err := r.c.DoTimeout(req, resp, 100*time.Second)
+	// fasthttp.ReleaseRequest(req)
+	// defer fasthttp.ReleaseResponse(resp)
+
+	if err != nil {
+		log.Print(err)
+		return StatusError, nil
+	}
+
+	statusCode := resp.StatusCode()
+	respBody := resp.Body()
+
+	if statusCode != http.StatusOK {
+		log.Printf("handler returned status code: %d", statusCode)
+
+		return StatusError, nil
+	}
+
+	// log.Printf("have response for sync request: %s", respBody)
+
+	return StatusOK, respBody
+}
+
+func (r *RProxy) normalCall(name string, payload []byte, async bool, headers map[string]string) (Status, []byte) {
+	handler, ok := r.hosts[name]
+
+	if !ok {
+		log.Printf("function not found: %s", name)
+		return StatusNotFound, nil
+	}
+
+	// log.Printf("have handlers: %s", handler)
+
+	// choose random handler
+	h := handler[rand.Intn(len(handler))]
+
+	// log.Printf("chosen handler: %s", h)
+
+	req, err := http.NewRequest("POST", h, bytes.NewBuffer(payload))
+
 	if err != nil {
 		log.Print(err)
 		return StatusError, nil
@@ -100,15 +165,14 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 		return StatusAccepted, nil
 	}
 
-	// call function and return results
-	log.Printf("sync request starting")
+	// log.Printf("sync request starting")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Print(err)
 		return StatusError, nil
 	}
 
-	log.Printf("sync request finished")
+	// log.Printf("sync request finished")
 
 	defer resp.Body.Close()
 	res_body, err := io.ReadAll(resp.Body)
@@ -122,6 +186,11 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 
 	return StatusOK, res_body
 }
+func (r *RProxy) Call(name string, payload []byte, async bool, headers map[string]string) (Status, []byte) {
+	return r.fastCall(name, payload, async, headers)
+	// return r.normalCall(name, payload, async, headers)
+}
+
 func cleanHeaderKey(key string) string {
 	// a regex pattern to match special characters
 	re := regexp.MustCompile(`[:()<>@,;:\"/[\]?={} \t]`)

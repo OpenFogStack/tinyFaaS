@@ -14,6 +14,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/OpenFogStack/tinyFaaS/pkg/docker"
 	"github.com/OpenFogStack/tinyFaaS/pkg/manager"
@@ -36,9 +37,10 @@ func main() {
 	log.SetPrefix("manager: ")
 
 	ports := map[string]int{
-		"coap": 5683,
-		"http": 8000,
-		"grpc": 9000,
+		"coap":     5683,
+		"http":     8000,
+		"fasthttp": 7000,
+		"grpc":     9000,
 	}
 
 	for p := range ports {
@@ -177,7 +179,14 @@ func main() {
 
 		// stop rproxy
 		log.Println("stopping rproxy")
-		err := rproxy.Kill()
+		// err := rproxy.Kill()
+		err := rproxy.Signal(syscall.SIGPROF)
+		if err != nil {
+			log.Println(err)
+		}
+
+		err = rproxy.Signal(os.Interrupt)
+		// err := rproxy.
 
 		if err != nil {
 			log.Println(err)

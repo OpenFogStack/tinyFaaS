@@ -1,54 +1,76 @@
 #!/usr/bin/env python3
 
-import typing
-import http.server
-import socketserver
+from robyn import Robyn
 
-if __name__ == "__main__":
+try:
+    import fn  # type: ignore
+except ImportError:
+    raise ImportError("Failed to import fn.py")
+
+
+app = Robyn(__file__)
+
+
+@app.get("/health")
+async def health(request):
+    print("reporting health: OK")
+    return "OK"
+
+
+@app.post("/fn")
+async def run_fn(request):
+    d = request.body
+    # headers = dict(request.headers)
     try:
-        import fn  # type: ignore
-    except ImportError:
-        raise ImportError("Failed to import fn.py")
+        res = fn.fn(d, None)
+        return res
+    except Exception as e:
+        print(e)
+        return str(e)
 
-    # create a webserver at port 8080 and execute fn.fn for every request
-    class tinyFaaSFNHandler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            print(f"GET {self.path}")
-            if self.path == "/health":
-                self.send_response(200)
-                self.end_headers()
-                self.wfile.write("OK".encode("utf-8"))
-                print("reporting health: OK")
-                return
 
-            self.send_response(404)
-            self.end_headers()
-            return
+app.start(host="0.0.0.0", port=8000)
 
-        def do_POST(self) -> None:
-            d: typing.Optional[str] = self.rfile.read(
-                int(self.headers["Content-Length"])
-            ).decode("utf-8")
-            if d == "":
-                d = None
+# if __name__ == "__main__":
+#     # create a webserver at port 8080 and execute fn.fn for every request
+#     class tinyFaaSFNHandler(http.server.BaseHTTPRequestHandler):
+#         def do_GET(self) -> None:
+#             print(f"GET {self.path}")
+#             if self.path == "/health":
+#                 self.send_response(200)
+#                 self.end_headers()
+#                 self.wfile.write("OK".encode("utf-8"))
+#                 print("reporting health: OK")
+#                 return
 
-            # Read headers into a dictionary
-            headers: typing.Dict[str, str] = {k: v for k, v in self.headers.items()}
+#             self.send_response(404)
+#             self.end_headers()
+#             return
 
-            try:
-                res = fn.fn(d, headers)
-                self.send_response(200)
-                self.end_headers()
-                if res is not None:
-                    self.wfile.write(res.encode("utf-8"))
+#         def do_POST(self) -> None:
+#             d: typing.Optional[str] = self.rfile.read(
+#                 int(self.headers["Content-Length"])
+#             ).decode("utf-8")
+#             if d == "":
+#                 d = None
 
-                return
-            except Exception as e:
-                print(e)
-                self.send_response(500)
-                self.end_headers()
-                self.wfile.write(str(e).encode("utf-8"))
-                return
+#             # Read headers into a dictionary
+#             headers: typing.Dict[str, str] = {k: v for k, v in self.headers.items()}
 
-    with socketserver.ThreadingTCPServer(("", 8000), tinyFaaSFNHandler) as httpd:
-        httpd.serve_forever()
+#             try:
+#                 res = fn.fn(d, headers)
+#                 self.send_response(200)
+#                 self.end_headers()
+#                 if res is not None:
+#                     self.wfile.write(res.encode("utf-8"))
+
+#                 return
+#             except Exception as e:
+#                 print(e)
+#                 self.send_response(500)
+#                 self.end_headers()
+#                 self.wfile.write(str(e).encode("utf-8"))
+#                 return
+
+#     with socketserver.ThreadingTCPServer(("", 8000), tinyFaaSFNHandler) as httpd:
+#         httpd.serve_forever()
