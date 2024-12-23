@@ -15,9 +15,9 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 	h := coap.FuncHandler(
 		func(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 
-			log.Printf("have request: %+v", m)
-			log.Printf("is confirmable: %v", m.IsConfirmable())
-			log.Printf("path: %s", m.PathString())
+			// log.Printf("have request: %+v", m)
+			// log.Printf("is confirmable: %v", m.IsConfirmable())
+			// log.Printf("path: %s", m.PathString())
 
 			p := m.PathString()
 
@@ -25,7 +25,7 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 				p = p[1:]
 			}
 
-			log.Printf("have request for path: %s (async: %v)", p, async)
+			// log.Printf("have request for path: %s (async: %v)", p, async)
 
 			s, res := r.Call(p, m.Payload, async, nil)
 

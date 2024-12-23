@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/OpenFogStack/tinyFaaS/pkg/coap"
+	"github.com/OpenFogStack/tinyFaaS/pkg/fastcoap"
 	"github.com/OpenFogStack/tinyFaaS/pkg/grpc"
 	tfhttp "github.com/OpenFogStack/tinyFaaS/pkg/http"
 	"github.com/OpenFogStack/tinyFaaS/pkg/rproxy"
@@ -73,6 +74,13 @@ func main() {
 		log.Printf("starting coap server on %s", listenAddr)
 		go coap.Start(r, listenAddr)
 	}
+
+	// Fast CoAP
+	if listenAddr, ok := listenAddrs["fastcoap"]; ok {
+		log.Printf("starting coap server on %s", listenAddr)
+		go fastcoap.Start(r, listenAddr)
+	}
+
 	// HTTP
 	if listenAddr, ok := listenAddrs["http"]; ok {
 		log.Printf("starting http server on %s", listenAddr)

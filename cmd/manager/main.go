@@ -38,6 +38,7 @@ func main() {
 
 	ports := map[string]int{
 		"coap":     5683,
+		"fastcoap": 5684,
 		"http":     8000,
 		"fasthttp": 7000,
 		"grpc":     9000,
