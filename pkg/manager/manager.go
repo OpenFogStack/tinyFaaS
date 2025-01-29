@@ -118,12 +118,10 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 		p = path.Join(p, subfolderPath)
 	}
 
-	// we know this function already, destroy its current handler
-	if _, ok := ms.functionHandlers[name]; ok {
-		err = ms.functionHandlers[name].Destroy()
-		if err != nil {
-			return "", err
-		}
+	// if function already exists, keep it while deploying the new version
+	var oldHandler Handler
+	if existingHandler, ok := ms.functionHandlers[name]; ok {
+		oldHandler = existingHandler
 	}
 
 	// create new function handler
@@ -180,6 +178,14 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 	}
 
 	log.Println("rproxy response:", string(r))
+
+	// destroy the old handler if it exists
+	if oldHandler != nil {
+		err = oldHandler.Destroy()
+		if err != nil {
+			return "", err
+		}
+	}
 
 	return name, nil
 }
