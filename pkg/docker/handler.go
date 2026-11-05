@@ -1,3 +1,6 @@
+// Package docker implements a tinyFaaS backend that runs each function as a
+// set of Docker containers. For every function it builds a dedicated image,
+// creates a dedicated network and one container per requested thread.
 package docker
 
 import (
@@ -24,27 +27,39 @@ import (
 )
 
 const (
-	TmpDir           = "./tmp"
+	// TmpDir is the temporary folder where the build context of each function
+	// (runtime files + function code) is assembled.
+	TmpDir = "./tmp"
+
+	// containerTimeout is the stop timeout in seconds.
 	containerTimeout = 1
 )
 
+// dockerHandler represents one deployed function. It implements manager.Handler
+// and keeps track of every Docker resource created for it (image, network,
+// containers) so they can be started and cleaned up later.
 type dockerHandler struct {
-	name       string
-	env        string
-	threads    int
-	uniqueName string
-	filePath   string
-	client     *client.Client
-	network    string
-	containers []string
-	handlerIPs []string
+	name       string         // function name as given by the user
+	env        string         // language runtime
+	threads    int            // number of container replicas
+	uniqueName string         // name + UUID, used for image, network and containers
+	filePath   string         // temporary build folder
+	client     *client.Client // Docker API client
+	network    string         // ID of the Docker network created for this function
+	containers []string       // IDs of the containers created for this function
+	handlerIPs []string       // IPs of the running containers, filled by Start
 }
 
+// DockerBackend is the entry point of this package: it creates function
+// handlers that run on the local Docker daemon.
 type DockerBackend struct {
-	client     *client.Client
-	tinyFaaSID string
+	client     *client.Client // Docker API client shared by all handlers
+	tinyFaaSID string         // ID of this tinyFaaS instance, used as a resource label
 }
 
+// New creates a DockerBackend. The Docker client is configured from the
+// environment (DOCKER_HOST etc.) and negotiates the API version with the
+// daemon. It aborts the program if the client cannot be created.
 func New(tinyFaaSID string) *DockerBackend {
 	// create docker client
 	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
@@ -53,19 +68,21 @@ func New(tinyFaaSID string) *DockerBackend {
 		return nil
 	}
 
-	return &DockerBackend{
-		client:     client,
-		tinyFaaSID: tinyFaaSID,
-	}
+	return &DockerBackend{client: client, tinyFaaSID: tinyFaaSID}
 }
 
+// Stop is a no-op: there is nothing to release at backend level, since
+// resources are cleaned up per function in Destroy.
 func (db *DockerBackend) Stop() error {
 	return nil
 }
 
+// Create prepares a function for execution: it assembles the build context,
+// builds the Docker image, creates a dedicated network and creates (but does
+// not start) one container per thread. Call Start on the returned handler to
+// actually run the function.
 func (db *DockerBackend) Create(name string, env string, threads int, filedir string, envs map[string]string) (manager.Handler, error) {
-
-	// make a unique function name by appending uuid string to function name
+	// Make a unique function name by appending uuid string to function name.
 	uuid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -83,40 +100,34 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 	dh.uniqueName = name + "-" + uuid.String()
 	log.Println("creating function", name, "with unique name", dh.uniqueName)
 
-	// make a folder for the function
-	// mkdir <folder>
+	// Make a folder for the function (mkdir <folder>).
 	dh.filePath = path.Join(TmpDir, dh.uniqueName)
-
 	err = os.MkdirAll(dh.filePath, 0777)
 	if err != nil {
 		return nil, err
 	}
 
-	// copy Docker stuff into folder
-	// cp runtimes/<env>/* <folder>
-
+	// Copy Docker stuff into folder (cp runtimes/<env>/* <folder>). Note the
+	// runtime files are embedded in the binary.
 	err = util.CopyDirFromEmbed(runtimes, path.Join(runtimesDir, dh.env), dh.filePath)
 	if err != nil {
 		return nil, err
 	}
-
 	log.Println("copied runtime files to folder", dh.filePath)
 
-	// copy function into folder
-	// into a subfolder called fn
-	// cp <file> <folder>/fn
+	// Copy function into folder into a subfolder called fn (cp <file>
+	// <folder>/fn).
 	err = os.MkdirAll(path.Join(dh.filePath, "fn"), 0777)
 	if err != nil {
 		return nil, err
 	}
-
 	err = util.CopyAll(filedir, path.Join(dh.filePath, "fn"))
 	if err != nil {
 		return nil, err
 	}
 
-	// build image
-	// docker build -t <image> <folder>
+	// Build image. The folder is sent to the daemon as a tar archive (the build
+	// context). Equivalent to docker build -t <image> <folder>.
 	tar, err := archive.TarWithOptions(dh.filePath, &archive.TarOptions{})
 	if err != nil {
 		return nil, err
@@ -127,8 +138,10 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 		tar,
 		client.ImageBuildOptions{
 			Tags:       []string{dh.uniqueName},
-			Remove:     true,
+			Remove:     true, // remove intermediate containers after the build
 			Dockerfile: "Dockerfile",
+			// labels let us identify resources belonging to this function and
+			// to this tinyFaaS instance
 			Labels: map[string]string{
 				"tinyfaas-function": dh.name,
 				"tinyFaaS":          db.tinyFaaSID,
@@ -139,16 +152,16 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 		return nil, err
 	}
 
+	// Stream the build output to the log until the build finishes.
 	defer r.Body.Close()
 	scanner := bufio.NewScanner(r.Body)
 	for scanner.Scan() {
 		log.Println(scanner.Text())
 	}
-
 	log.Println("built image", dh.uniqueName)
 
-	// create network
-	// docker network create <network>
+	// Create network, each function gets its own isolated network. Equivalent
+	// to: docker network create <network>.
 	network, err := db.client.NetworkCreate(
 		context.Background(),
 		dh.uniqueName,
@@ -162,19 +175,17 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 	if err != nil {
 		return nil, err
 	}
-
 	dh.network = network.ID
-
 	log.Println("created network", dh.uniqueName, "with id", network.ID)
 
+	// Convert the environment variable map to the "KEY=VALUE" format expected
+	// by Docker.
 	e := make([]string, 0, len(envs))
-
 	for k, v := range envs {
 		e = append(e, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// create containers
-	// docker run -d --network <network> --name <container> <image>
+	// Create containers. Equivalent to: docker run -d --network <network> --name <container> <image>.
 	for i := 0; i < dh.threads; i++ {
 		c, err := db.client.ContainerCreate(
 			context.Background(),
@@ -188,44 +199,46 @@ func (db *DockerBackend) Create(name string, env string, threads int, filedir st
 					Env: e,
 				},
 				HostConfig: &container.HostConfig{
+					// Attach the container to the function's own network.
 					NetworkMode: container.NetworkMode(dh.uniqueName),
 				},
+				// Container names are suffixed with the replica index
 				Name: dh.uniqueName + fmt.Sprintf("-%d", i),
 			},
 		)
-
 		if err != nil {
 			return nil, err
 		}
-
 		log.Println("created container", c.ID)
 
 		dh.containers = append(dh.containers, c.ID)
 	}
 
-	// remove folder
-	// rm -rf <folder>
+	// Remove the build context folder, since it is no longer needed once the
+	// image is built.
 	err = os.RemoveAll(dh.filePath)
 	if err != nil {
 		return nil, err
 	}
-
 	log.Println("removed folder", dh.filePath)
 
 	return dh, nil
 
 }
 
+// IPs returns the IP addresses of the function's containers. The list is
+// populated by Start, so it is empty before the function has been started.
 func (dh *dockerHandler) IPs() []string {
 	return dh.handlerIPs
 }
 
+// Start launches all containers of the function, collects their IPs and waits
+// until each of them reports it is healthy. It returns an error if a container
+// does not become ready in time.
 func (dh *dockerHandler) Start() error {
 	log.Printf("dh: %+v", dh)
 
-	// start containers
-	// docker start <container>
-
+	// Start containers. Equivalent to: docker start <container>.
 	wg := sync.WaitGroup{}
 	for _, c := range dh.containers {
 		wg.Add(1)
@@ -246,8 +259,7 @@ func (dh *dockerHandler) Start() error {
 	}
 	wg.Wait()
 
-	// get container IPs
-	// docker inspect <container>
+	// Get container IPs from the function's dedicated network. Equivalent to: docker inspect <container>.
 	for _, container := range dh.containers {
 		c, err := dh.client.ContainerInspect(
 			context.Background(),
@@ -264,16 +276,13 @@ func (dh *dockerHandler) Start() error {
 		log.Println("got ip", ip, "for container", container)
 	}
 
-	// wait for the containers to be ready
-	// curl http://<container>:8000/ready
+	// Wait for the containers to be ready.
 	for i, ip := range dh.handlerIPs {
 		log.Println("waiting for container", ip, "to be ready")
 		maxRetries := 10
 		for {
 			maxRetries--
 			if maxRetries == 0 {
-				// container did not start properly!
-				// give people some logs to look at
 				log.Printf("container %s (ip %s) not ready after 10 retries", dh.containers[i], ip)
 				log.Printf("getting logs for container %s", dh.containers[i])
 				logs, err := dh.getContainerLogs(dh.containers[i])
@@ -289,7 +298,6 @@ func (dh *dockerHandler) Start() error {
 				return fmt.Errorf("container %s not ready after 10 retries", ip)
 			}
 
-			// timeout of 1 second
 			client := http.Client{
 				Timeout: 3 * time.Second,
 			}
@@ -302,6 +310,7 @@ func (dh *dockerHandler) Start() error {
 				continue
 			}
 			resp.Body.Close()
+			// HTTP 200 means the function runtime is up and ready
 			if resp.StatusCode == http.StatusOK {
 				log.Println("container", ip, "is ready")
 				break
@@ -314,6 +323,8 @@ func (dh *dockerHandler) Start() error {
 	return nil
 }
 
+// Destroy removes everything created for the function: it stops and removes
+// the containers (in parallel), then removes the network and the image.
 func (dh *dockerHandler) Destroy() error {
 	log.Println("destroying function", dh.name)
 	log.Printf("dh: %+v", dh)
@@ -329,6 +340,7 @@ func (dh *dockerHandler) Destroy() error {
 
 			timeout := 1 // seconds
 
+			// Equivalent to: docker stop <container>.
 			_, err := dh.client.ContainerStop(
 				context.Background(),
 				c,
@@ -342,6 +354,7 @@ func (dh *dockerHandler) Destroy() error {
 
 			log.Println("stopped container", c)
 
+			// Equivalent to: docker rm <container>.
 			_, err = dh.client.ContainerRemove(
 				context.Background(),
 				c,
@@ -355,10 +368,12 @@ func (dh *dockerHandler) Destroy() error {
 
 		log.Println("removed container", c)
 	}
+
+	// Wait for all containers to be stopped and removed; the network can only
+	// be deleted once no container is attached to it
 	wg.Wait()
 
-	// remove network
-	// docker network rm <network>
+	// Remove network. Equivalent to: docker network rm <network>.
 	_, err := dh.client.NetworkRemove(
 		context.Background(),
 		dh.network,
@@ -370,8 +385,7 @@ func (dh *dockerHandler) Destroy() error {
 
 	log.Println("removed network", dh.network)
 
-	// remove image
-	// docker rmi <image>
+	// Remove image. Equivalent to: docker rmi <image>.
 	_, err = dh.client.ImageRemove(
 		context.Background(),
 		dh.uniqueName,
@@ -387,9 +401,14 @@ func (dh *dockerHandler) Destroy() error {
 	return nil
 }
 
+// getContainerLogs returns the stdout and stderr logs of a single container.
+// Every line is prefixed with the function name and container ID so that logs
+// from different containers can be told apart. Stdout lines come first,
+// followed by stderr lines.
 func (dh *dockerHandler) getContainerLogs(c string) (string, error) {
 	logs := ""
 
+	// Equivalent to: docker logs --timestamps <container>.
 	l, err := dh.client.ContainerLogs(
 		context.Background(),
 		c,
@@ -406,6 +425,8 @@ func (dh *dockerHandler) getContainerLogs(c string) (string, error) {
 	var lstdout bytes.Buffer
 	var lstderr bytes.Buffer
 
+	// Docker multiplexes stdout and stderr in a single stream. StdCopy
+	// demultiplexes them into two separate buffers.
 	_, err = stdcopy.StdCopy(&lstdout, &lstderr, l)
 
 	l.Close()
@@ -414,8 +435,7 @@ func (dh *dockerHandler) getContainerLogs(c string) (string, error) {
 		return logs, err
 	}
 
-	// add a prefix to each line
-	// function=<function> handler=<handler> <line>
+	// Add a prefix to each line: function=<function> handler=<handler> <line>.
 	scanner := bufio.NewScanner(&lstdout)
 
 	for scanner.Scan() {
@@ -426,7 +446,7 @@ func (dh *dockerHandler) getContainerLogs(c string) (string, error) {
 		return logs, err
 	}
 
-	// same for stderr
+	// Same for stderr.
 	scanner = bufio.NewScanner(&lstderr)
 
 	for scanner.Scan() {
@@ -440,9 +460,10 @@ func (dh *dockerHandler) getContainerLogs(c string) (string, error) {
 	return logs, nil
 }
 
+// Logs returns the combined logs of all containers of the function as a single
+// reader.
 func (dh *dockerHandler) Logs() (io.Reader, error) {
-	// get container logs
-	// docker logs <container>
+	// Get container logs. Equivalent to: docker logs <container>.
 	var logs bytes.Buffer
 
 	for _, c := range dh.containers {

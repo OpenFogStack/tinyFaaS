@@ -6,6 +6,9 @@ TEST_DIR := ./test
 SUPPORTED_ARCH=amd64 arm arm64
 RUNTIMES := $(shell find pkg/docker/runtimes -name Dockerfile | xargs -n1 dirname | xargs -n1 basename)
 
+# Some commands require root.
+SUDO ?= $(if $(filter 0,$(shell id -u)),,sudo)
+
 OS=$(shell go env GOOS)
 ARCH=$(shell go env GOARCH)
 
@@ -17,7 +20,7 @@ build: tinyfaas-${OS}-${ARCH}
 
 .PHONY: start
 start: tinyfaas-${OS}-${ARCH}
-	./$<
+	$(SUDO) ./$<
 
 .PHONY: test
 test: build ${TEST_DIR}/test_all.py pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/tinyfaas/tinyfaas_pb2.pyi pkg/grpc/tinyfaas/tinyfaas_pb2_grpc.py
@@ -25,7 +28,10 @@ test: build ${TEST_DIR}/test_all.py pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/t
 
 .PHONY: clean
 clean: clean.sh
-	@sh clean.sh
+	@$(SUDO) sh clean.sh
+
+.PHONY: clean-generated
+clean-generated:
 	rm -rfv pkg/docker/runtimes-*/
 	rm -fv tinyfaas-*-* cmd/manager/rproxy-*.bin
 
@@ -41,10 +47,10 @@ pkg/docker/runtimes-$(arch)/$(runtime): pkg/docker/runtimes-$(arch)/$(runtime)/D
 
 pkg/docker/runtimes-$(arch)/$(runtime)/blob.tar.gz: pkg/docker/runtimes/$(runtime)/build.Dockerfile
 	mkdir -p $$(@D)
-	cd $$(<D) ; docker build --platform=linux/$(arch) -t tf-build-$(arch)-$(runtime) -f $$(<F) .
-	docker run -d -t --platform=linux/$(arch) --name $${PROJECT_NAME}-$(runtime) --rm tf-build-$(arch)-$(runtime)
-	docker export $${PROJECT_NAME}-$(runtime) | gzip > $$@
-	docker kill $${PROJECT_NAME}-$(runtime)
+	cd $$(<D) ; $$(SUDO) docker build --platform=linux/$(arch) -t tf-build-$(arch)-$(runtime) -f $$(<F) .
+	$$(SUDO) docker run -d -t --platform=linux/$(arch) --name $${PROJECT_NAME}-$(runtime) --rm tf-build-$(arch)-$(runtime)
+	$$(SUDO) docker export $${PROJECT_NAME}-$(runtime) | gzip > $$@
+	$$(SUDO) docker kill $${PROJECT_NAME}-$(runtime)
 
 pkg/docker/runtimes-$(arch)/$(runtime)/Dockerfile: pkg/docker/runtimes/$(runtime)/Dockerfile
 	mkdir -p $$(@D)

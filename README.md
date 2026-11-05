@@ -244,6 +244,12 @@ docker rmi $(docker image ls -q --filter label=tinyFaaS)
 rm -rf ./tmp
 ```
 
+You can also remove the files generated to build tinyFaaS with:
+
+```sh
+make clean-generated
+```
+
 ### Specifying Ports
 
 By default, tinyFaaS will use the following ports:
