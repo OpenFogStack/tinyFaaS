@@ -133,9 +133,9 @@ To get a list of existing functions, run `./scripts/list.sh`.
 To delete a function, run `./scripts/delete.sh {NAME}`. To remove all
 functions, run `./scripts/wipe-functions.sh`.
 
-To read the logs of all functions, run `./scripts/logs.sh`. The script does not
-take any arguments. To read the logs of a single function, call the management
-service directly with `curl "localhost:8080/logs?name={NAME}"`.
+To read the logs of all functions, run `./scripts/logs.sh` or
+`./scripts/get_logs.sh`. You can also ead the logs of a single function directly
+with `curl "localhost:8080/logs?name={NAME}"`.
 
 ### Writing Functions
 
