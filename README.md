@@ -57,10 +57,12 @@ is deployed to tinyFaaS, function handlers are created automatically.
 
 Before you get started, make sure you have the following dependencies installed:
 
-- Go (>=v1.22) to compile management service and reverse proxy
-- Docker (>=v24)
-- Make
-- a writable directory (tinyFaaS writes temporary files to a `./tmp` directory)
+- Go, to compile management service and reverse proxy,
+- Docker (>=v29),
+- Make,
+- a writable directory (tinyFaaS writes temporary files to a `./tmp` directory).
+
+You can see the exact required Go version in the [go.mod](./go.mod) file.
 
 Note that tinyFaaS is intended for Linux hosts (`x86_64` and `arm64`). Due to
 limitations of Docker Desktop for Mac, installing and running
@@ -77,48 +79,71 @@ Start tinyFaaS with:
 make start
 ```
 
-The reverse proxy will be started automatically.
-Please note that you cannot use tinyFaaS until the reverse proxy is running.
+This builds tinyFaaS for your host platform if necessary and runs it with
+`sudo`, so you may be asked for your password.
+
+The reverse proxy will be started automatically. Please note that you cannot use
+tinyFaaS until the reverse proxy is running.
 
 ### Managing Functions
 
 To manage functions on tinyFaaS, use the scripts included in `./scripts`.
 
-To upload a function, run `upload.sh {FOLDER} {NAME} {ENV} {THREADS}`, where
-`{FOLDER}` is the path to your function code, `{NAME}` is the name for your
-function, `{ENV}` is the environment you want to use (`python3`, `nodejs`, or
-`binary`), and `{THREADS}` is the number of function handlers for your function.
-For example, you can run `./scripts/upload.sh "./test/fns/sieve-of-eratosthenes"
-"sieve" "nodejs" 1` to upload the _Sieve of Eratosthenes_ example function
-included in this repository. This requires the `zip`, `base64`, and `curl`
+#### Deploy a function
+
+There are two ways to deploy a function:
+
+```sh
+$ ./scripts/upload.sh {FOLDER} {NAME} {ENV} {THREADS}
+$ ./scripts/uploadURL.sh {URL} {SUBFOLDER_PATH} {NAME} {ENV} {THREADS}
+```
+
+The main difference is that `upload.sh` takes a local folder that contains your
+function code, whereas `uploadURL.sh` deploys a function from a zip file that
+the tinyFaaS manager can reach at the given URL. In that case, you also need to
+give the folder that contains the code inside the zip file (use `/` if the code
+is at the top level). `upload.sh` requires the `zip`, `base64`, and `curl`
 utilities.
 
-Alternatively, you can upload a function from a zip file available at a URL. Use
-the included script as a starting point: `uploadURL.sh {URL} {NAME} {ENV}
-{THREADS} {SUBFOLDER_PATH}`, where `{URL}` is the URL of a zip file containing
-your function code, `{NAME}` is the name for your function, `{ENV}` is the
-environment, `{THREADS}` is the number of function handlers, and
-`{SUBFOLDER_PATH}` is the folder containing the code within the zip (use `/` if
-the code is at the top level). For example, you can run `uploadURL.sh
-"https://github.com/OpenFogStack/tinyFaaS/archive/main.zip"
-"tinyFaaS-main/test/fns/sieve-of-eratosthenes" "sieve" "nodejs" 1` to upload the
-_Sieve of Eratosthenes_ example function included in this repository.
+The other available options are:
 
-To get a list of existing functions, run `list.sh`.
+* `{NAME}`: the name of the function, which also identifies it. You need this
+  name to call the function.
+* `{ENV}`: the runtime you want to use (`python3`, `go`, `nodejs`, `binary`).
+* `{THREADS}`: the number of function handlers, which is how many identical
+  containers are created for the function. Each container can already handle
+  requests in parallel on its own, and the reverse proxy forwards a call to a
+  random function handler. If you want to change this value, you need to
+  re-deploy the function.
 
-To delete a function, run `delete.sh {NAME}`, where `{NAME}` is the name of the
-function you want to remove.
+Examples:
 
-We also provide scripts to read logs from your functions and to wipe all
-functions from tinyFaaS.
+```sh
+$ ./scripts/upload.sh "./test/fns/sieve-of-eratosthenes" "sieve" "nodejs" 1
+$ ./scripts/uploadURL.sh \
+    "https://github.com/OpenFogStack/tinyFaaS/archive/main.zip" \
+    "tinyFaaS-main/test/fns/sieve-of-eratosthenes" \
+    "sieve" "nodejs" 1
+```
+
+#### Other commands
+
+To get a list of existing functions, run `./scripts/list.sh`.
+
+To delete a function, run `./scripts/delete.sh {NAME}`. To remove all
+functions, run `./scripts/wipe-functions.sh`.
+
+To read the logs of all functions, run `./scripts/logs.sh`. The script does not
+take any arguments. To read the logs of a single function, call the management
+service directly with `curl "localhost:8080/logs?name={NAME}"`.
 
 ### Writing Functions
 
 This tinyFaaS prototype supports functions written for Go 1.27, Node.js 26,
 Python 3.13, and binary functions. A good place to start is the collection of
-test functions in [`./test/fns`](./test/fns/). In Node.js and Python functions,
-HTTP headers and gRPC metadata are available as key-value pairs. See the
-"show-headers" test functions for more information.
+test functions in [`./test/fns`](./test/fns/). In Go, Node.js and Python
+functions, HTTP headers and gRPC metadata are available as key-value pairs. See
+the "show-headers" test functions for more information.
 
 #### Go
 
@@ -139,18 +164,18 @@ parameter, a string that is passed to the client as-is.
 #### Python
 
 Your function must be supplied as a file named `fn.py` that exposes a method
-`fn` that is invoked for every function invocation. This method must accept a
-string as an input (that can also be `None`) and must provide a string as a
-return value. You may also provide a `requirements.txt` file from which
-dependencies will be installed alongside your function. Any other data you
-provide will be available.
+`fn` that is invoked for every function invocation. This method must accept two
+arguments: the input as a string (that can also be `None`) and the headers as a
+dictionary. It must return a string or `None`. You may also provide a
+`requirements.txt` file from which dependencies will be installed alongside your
+function. Any other data you provide will be available.
 
 #### Binary
 
 Your function must be provided as a `fn.sh` shell script that is invoked for
 every function call. This shell script may also call other binaries as needed.
 Input data is provided from `stdin`. Output responses should be provided on
-`stdout`.
+`stdout`. Anything written to `stderr` is also included in the response.
 
 ### Calling Functions
 
@@ -177,8 +202,8 @@ available](https://fitbit.github.io/golden-gate/tools/coap_client.html).
 
 To call a tinyFaaS function using its HTTP endpoint, make a GET or POST request
 to `http://{HOST}:{PORT}/{NAME}` where `{HOST}` is the address of the tinyFaaS
-host, `{PORT}` is the port for the tinyFaaS HTTP endpoint (default is `80`), and
-`{NAME}` is the name of your function. You may include data in any form you
+host, `{PORT}` is the port for the tinyFaaS HTTP endpoint (default is `8000`),
+and `{NAME}` is the name of your function. You may include data in any form you
 want, it will be passed to your function.
 
 TLS is not supported (but contributions are welcome).
@@ -203,19 +228,19 @@ data in any form you want.
 
 ### Removing tinyFaaS
 
-When you stop the management service with `SIGINT` (`Ctrl+C`), the reverse proxy and all function handlers should be stopped.
-You can also use:
+When you stop the management service with `SIGINT` (`Ctrl+C`), the reverse proxy
+and all function handlers should be stopped. You can also use:
 
-```bash
+```sh
 make clean
 ```
 
 OR
 
-```bash
-docker rm -f $$(docker ps -a -q --filter label=tinyFaaS)
-docker network rm $$(docker network ls -q --filter label=tinyFaaS)
-docker rmi $$(docker image ls -q --filter label=tinyFaaS)
+```sh
+docker rm -f $(docker ps -a -q --filter label=tinyFaaS)
+docker network rm $(docker network ls -q --filter label=tinyFaaS)
+docker rmi $(docker image ls -q --filter label=tinyFaaS)
 rm -rf ./tmp
 ```
 
@@ -230,19 +255,19 @@ By default, tinyFaaS will use the following ports:
 | 8000 | TCP      | HTTP Endpoint      |
 | 9000 | TCP      | GRPC Endpoint      |
 
-To change the port of the management service, change the port binding in the
-`docker run` command.
+The scripts in `./scripts` expect the management service on port `8080`.
 
-To change or deactivate the endpoints of tinyFaaS, you can use the `COAP_PORT`,
-`HTTP_PORT`, and `GRPC_PORT` environment variables, which must be passed to the
-management service Docker container. Specify `-1` to deactivate a specific
-endpoint. For example, to use `6000` as the port for the CoAP and deactivate
-GRPC, run the management service with this command:
+To change or deactivate the endpoints of tinyFaaS, you can use the `coap_PORT`,
+`http_PORT`, and `grpc_PORT` environment variables (the names are
+case-sensitive), which must be passed to the management service. Specify `-1` to
+deactivate a specific endpoint. `sudo` does not pass your environment variables
+on by default, so set them in the command that runs the binary rather than
+using `make start`. For example, to use `6000` as the port for CoAP and
+deactivate GRPC, run:
 
-```bash
-docker run --env COAP_PORT=6000 --env GRPC_PORT=-1 \
-    -v /var/run/docker.sock:/var/run/docker.sock -p 8080:8080 \
-    --name tinyfaas-mgmt -d tinyfaas-mgmt tinyfaas-mgmt
+```sh
+make build
+sudo env coap_PORT=6000 grpc_PORT=-1 ./tinyfaas-$(go env GOOS)-$(go env GOARCH)
 ```
 
 ### Tests
@@ -257,7 +282,8 @@ Running the tests requires:
 - Python >3.10 with the `venv` module
 - a tinyFaaS binary built for your host
 
-Create a virtual environment for Python and install the necessary dependencies for CoAP and gRPC:
+Create a virtual environment for Python and install the necessary dependencies
+for CoAP and gRPC:
 
 ```sh
 python3 -m venv .venv
@@ -265,7 +291,8 @@ source .venv/bin/activate
 python3 -m pip install -r test/requirements.txt
 ```
 
-If you do not install these requirements, test runs are limited to invocations with HTTP.
+If you do not install these requirements, test runs are limited to invocations
+with HTTP.
 
 Run the tests with:
 
@@ -278,8 +305,8 @@ Ran 13 tests in 28.063s
 OK
 ```
 
-Tests will output a `.` (dot) for successful tests and `E` or `F` for failed tests.
-tinyFaaS output will be written to `tf_test.out`.
+Tests will output a `.` (dot) for successful tests and `E` or `F` for failed
+tests. tinyFaaS output will be written to `tf_test.out`.
 
 On macOS,
 [`docker-mac-net-connect`](https://github.com/chipmk/docker-mac-net-connect) is
@@ -292,3 +319,33 @@ restarting the tunnel:
 ```sh
 sudo brew services restart docker-mac-net-connect
 ```
+
+### Known limitations
+
+#### HTTP status code and headers
+
+Any function, in any runtime, cannot control the HTTP status code or the HTTP
+headers that are returned. Only the body is sent back to the client. If the
+function returns an error or throws an exception, the HTTP status is still 200
+and the body contains the error instead of the function's result. In the binary
+runtime, the body contains only the exit error (for example, `exit status 1`),
+not the output of the script.
+
+To recap, for function requests, tinyFaaS returns the following HTTP status
+codes to the client:
+
+* `200 OK`: The container responded with any status: success, a Python
+  exception, a Go error, a non-zero exit from a binary, or a Node.js
+  `res.status(...)`.
+* `202 Accepted`: The request had the `X-tinyFaaS-Async` header. The proxy
+  replies straight away and never waits for the function.
+* `404 Not Found`: No function is deployed under that name.
+* `500 Internal Server Error`: The proxy couldn't read the client's request
+  body, couldn't reach the container (connection refused, or the container
+  crashed mid-request), or couldn't read the container's response.
+
+#### Function timeout
+
+The reverse proxy does not set a timeout for a function request. A synchronous
+function that hangs keeps the client waiting forever instead of getting an error
+code.
