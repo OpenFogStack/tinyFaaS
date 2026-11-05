@@ -26,6 +26,8 @@ test: build ${TEST_DIR}/test_all.py pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/t
 .PHONY: clean
 clean: clean.sh
 	@sh clean.sh
+	rm -rfv pkg/docker/runtimes-*/
+	rm -fv tinyfaas-*-* cmd/manager/rproxy-*.bin
 
 
 define arch_build
