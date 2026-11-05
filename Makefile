@@ -45,7 +45,7 @@ define runtime_build
 .PHONY: pkg/docker/runtimes-$(arch)/$(runtime)
 pkg/docker/runtimes-$(arch)/$(runtime): pkg/docker/runtimes-$(arch)/$(runtime)/Dockerfile pkg/docker/runtimes-$(arch)/$(runtime)/blob.tar.gz
 
-pkg/docker/runtimes-$(arch)/$(runtime)/blob.tar.gz: pkg/docker/runtimes/$(runtime)/build.Dockerfile
+pkg/docker/runtimes-$(arch)/$(runtime)/blob.tar.gz: pkg/docker/runtimes/$(runtime)/build.Dockerfile $(filter-out %/Dockerfile,$(wildcard pkg/docker/runtimes/$(runtime)/*))
 	mkdir -p $$(@D)
 	cd $$(<D) ; $$(SUDO) docker build --platform=linux/$(arch) -t tf-build-$(arch)-$(runtime) -f $$(<F) .
 	$$(SUDO) docker run -d -t --platform=linux/$(arch) --name $${PROJECT_NAME}-$(runtime) --rm tf-build-$(arch)-$(runtime)
