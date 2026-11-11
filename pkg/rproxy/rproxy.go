@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"regexp"
 	"sync"
-	"time"
 )
 
 type Status uint32
@@ -91,15 +90,12 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 	if async {
 		log.Printf("async request accepted")
 		go func() {
-			start := time.Now()
 			resp, err2 := http.DefaultClient.Do(req)
 			if err2 != nil {
-				observeInvocation(name, http.StatusBadGateway, true, time.Since(start))
 				return
 			}
 			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
-			observeInvocation(name, resp.StatusCode, true, time.Since(start))
 			log.Printf("async request finished")
 		}()
 		return StatusAccepted, nil
@@ -107,10 +103,8 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 
 	// call function and return results
 	log.Printf("sync request starting")
-	start := time.Now()
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		observeInvocation(name, http.StatusBadGateway, false, time.Since(start))
 		log.Print(err)
 		return StatusError, nil
 	}
@@ -119,7 +113,6 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 
 	defer resp.Body.Close()
 	res_body, err := io.ReadAll(resp.Body)
-	observeInvocation(name, resp.StatusCode, false, time.Since(start))
 
 	if err != nil {
 		log.Print(err)
