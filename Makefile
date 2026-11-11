@@ -1,12 +1,19 @@
 PROJECT_NAME := "tinyFaaS"
 PKG := "github.com/OpenFogStack/$(PROJECT_NAME)"
 GO_FILES := $(shell find . -name '*.go' | grep -v /vendor/ | grep -v /ext/ | grep -v _test.go)
+
+# We need to get the python3 executable in this way because it also works with
+# virtual environments when using sudo.
+PYTHON ?= $(shell command -v python3)
 TEST_DIR := ./test
+VERBOSE_TESTS ?= false
+TEST_FLAGS := $(if $(filter true,$(VERBOSE_TESTS)),-v)
 
 SUPPORTED_ARCH=amd64 arm arm64
 RUNTIMES := $(shell find pkg/docker/runtimes -name Dockerfile | xargs -n1 dirname | xargs -n1 basename)
 
-# Some commands require root.
+# Add "sudo" prefix on commands that require root. You can ovveride this
+# (example with "doas" if sudo is not available).
 SUDO ?= $(if $(filter 0,$(shell id -u)),,sudo)
 
 OS=$(shell go env GOOS)
@@ -24,7 +31,7 @@ start: tinyfaas-${OS}-${ARCH}
 
 .PHONY: test
 test: build ${TEST_DIR}/test_all.py pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/tinyfaas/tinyfaas_pb2.pyi pkg/grpc/tinyfaas/tinyfaas_pb2_grpc.py
-	@python3 ${TEST_DIR}/test_all.py
+	@$(SUDO) $(PYTHON) ${TEST_DIR}/test_all.py ${TEST_FLAGS}
 
 .PHONY: clean
 clean: clean.sh
@@ -69,7 +76,7 @@ pkg/grpc/tinyfaas/tinyfaas.pb.go pkg/grpc/tinyfaas/tinyfaas_grpc.pb.go: pkg/grpc
 # requires grpcio-tools and mypy-protobuf
 # 	python3 -m pip install -r requirements.txt
 pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/tinyfaas/tinyfaas_pb2.pyi pkg/grpc/tinyfaas/tinyfaas_pb2_grpc.py: pkg/grpc/tinyfaas/tinyfaas.proto
-	@python3 -m grpc_tools.protoc -I $(<D) --python_out=$(<D) --grpc_python_out=$(<D) --mypy_out=$(<D) $<
+	@$(PYTHON) -m grpc_tools.protoc -I $(<D) --python_out=$(<D) --grpc_python_out=$(<D) --mypy_out=$(<D) $<
 
 cmd/manager/rproxy-%.bin: pkg/grpc/tinyfaas/tinyfaas_pb2.py pkg/grpc/tinyfaas/tinyfaas_pb2.pyi pkg/grpc/tinyfaas/tinyfaas_pb2_grpc.py pkg/grpc/tinyfaas/tinyfaas.pb.go pkg/grpc/tinyfaas/tinyfaas_grpc.pb.go $(GO_FILES)
 	GOOS=$(word 1,$(subst -, ,$*)) GOARCH=$(word 2,$(subst -, ,$*)) go build -o $@ -v $(PKG)/cmd/rproxy

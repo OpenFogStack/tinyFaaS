@@ -311,8 +311,16 @@ Ran 13 tests in 28.063s
 OK
 ```
 
-Tests will output a `.` (dot) for successful tests and `E` or `F` for failed
-tests. tinyFaaS output will be written to `tf_test.out`.
+Tests will output a `.` (dot) for a successful test, `F` for a failed assertion,
+`E` for an unexpected error, `s` for a skipped test, `x` for an expected failure
+and `u` for an unexpected success. tinyFaaS output will be written to
+`tf_test.out`.
+
+To see the details of each test, run make like this:
+
+```sh
+$ make test VERBOSE_TESTS=true
+```
 
 On macOS,
 [`docker-mac-net-connect`](https://github.com/chipmk/docker-mac-net-connect) is
