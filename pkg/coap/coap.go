@@ -11,7 +11,6 @@ import (
 const async = false
 
 func Start(r *rproxy.RProxy, listenAddr string) {
-
 	h := coap.FuncHandler(
 		func(l *net.UDPConn, a *net.UDPAddr, m *coap.Message) *coap.Message {
 
@@ -52,6 +51,5 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 		})
 
 	log.Printf("Starting CoAP server on %s", listenAddr)
-
 	coap.ListenAndServe("udp", listenAddr, h)
 }

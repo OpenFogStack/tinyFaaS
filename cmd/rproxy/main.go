@@ -49,19 +49,13 @@ func main() {
 
 	r := rproxy.New()
 
-	// CoAP
 	if listenAddr, ok := listenAddrs["coap"]; ok {
-		log.Printf("starting coap server on %s", listenAddr)
 		go coap.Start(r, listenAddr)
 	}
-	// HTTP
 	if listenAddr, ok := listenAddrs["http"]; ok {
-		log.Printf("starting http server on %s", listenAddr)
 		go tfhttp.Start(r, listenAddr)
 	}
-	// GRPC
 	if listenAddr, ok := listenAddrs["grpc"]; ok {
-		log.Printf("starting grpc server on %s", listenAddr)
 		go grpc.Start(r, listenAddr)
 	}
 

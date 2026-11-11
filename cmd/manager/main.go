@@ -4,6 +4,7 @@ import (
 	"bufio"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -31,7 +32,6 @@ type server struct {
 }
 
 func main() {
-
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetPrefix("manager: ")
 
@@ -42,7 +42,7 @@ func main() {
 	}
 
 	for p := range ports {
-		portstr := os.Getenv(p + "_PORT")
+		portstr := os.Getenv(strings.ToUpper(p) + "_PORT")
 
 		if portstr == "" {
 			continue
@@ -106,13 +106,11 @@ func main() {
 	rProxyDir := path.Join(os.TempDir(), id)
 
 	err := os.MkdirAll(rProxyDir, 0755)
-
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	err = os.WriteFile(path.Join(rProxyDir, "rproxy.bin"), RProxyBin, 0755)
-
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -120,7 +118,6 @@ func main() {
 	defer os.RemoveAll(rProxyDir)
 
 	c := exec.Command(path.Join(rProxyDir, "rproxy.bin"), rproxyArgs...)
-
 	stdout, err := c.StdoutPipe()
 	if err != nil {
 		log.Fatal(err)
@@ -145,8 +142,7 @@ func main() {
 		}
 	}()
 
-	err = c.Start()
-	if err != nil {
+	if err := c.Start(); err != nil {
 		log.Fatal(err)
 	}
 
@@ -154,9 +150,7 @@ func main() {
 
 	log.Println("started rproxy")
 
-	s := &server{
-		ms: ms,
-	}
+	s := &server{ms: ms}
 
 	// create handlers
 	r := http.NewServeMux()
@@ -197,14 +191,12 @@ func main() {
 	// start server
 	log.Println("starting HTTP server")
 	addr := fmt.Sprintf(":%d", ConfigPort)
-	err = http.ListenAndServe(addr, r)
-	if err != nil {
+	if err := http.ListenAndServe(addr, r); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func (s *server) uploadHandler(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -241,17 +233,20 @@ func (s *server) uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res, err := s.ms.Upload(d.FunctionName, d.FunctionEnv, d.FunctionThreads, d.FunctionZip, envs)
-
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
 		log.Println(err)
+		if errors.Is(err, manager.ErrInvalidFunctionName) {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintln(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	// return success
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, res)
-
 }
 
 func (s *server) deleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +315,6 @@ func (s *server) wipeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) logsHandler(w http.ResponseWriter, r *http.Request) {
-
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusBadRequest)
 		return

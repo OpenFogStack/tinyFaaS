@@ -94,6 +94,7 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 			if err2 != nil {
 				return
 			}
+			io.Copy(io.Discard, resp.Body)
 			resp.Body.Close()
 			log.Printf("async request finished")
 		}()
@@ -117,8 +118,6 @@ func (r *RProxy) Call(name string, payload []byte, async bool, headers map[strin
 		log.Print(err)
 		return StatusError, nil
 	}
-
-	// log.Printf("have response for sync request: %s", res_body)
 
 	return StatusOK, res_body
 }

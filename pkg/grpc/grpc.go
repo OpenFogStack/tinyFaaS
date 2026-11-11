@@ -19,7 +19,6 @@ type GRPCServer struct {
 
 // Request handles a request to the GRPC endpoint of the reverse-proxy of this tinyFaaS instance.
 func (gs *GRPCServer) Request(ctx context.Context, d *tinyfaas.Data) (*tinyfaas.Response, error) {
-
 	log.Printf("have request for path: %s (async: %v)", d.FunctionIdentifier, false)
 
 	// Extract metadata from the gRPC context

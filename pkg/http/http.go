@@ -9,7 +9,6 @@ import (
 )
 
 func Start(r *rproxy.RProxy, listenAddr string) {
-
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -52,12 +51,8 @@ func Start(r *rproxy.RProxy, listenAddr string) {
 	})
 
 	log.Printf("Starting HTTP server on %s", listenAddr)
-	err := http.ListenAndServe(listenAddr, mux)
-
-	if err != nil {
+	if err := http.ListenAndServe(listenAddr, mux); err != nil {
 		log.Fatal(err)
 	}
-
 	log.Print("HTTP server stopped")
-
 }

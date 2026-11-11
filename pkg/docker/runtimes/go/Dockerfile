@@ -1,4 +1,7 @@
-FROM golang:1.22-alpine3.19
+ARG GO_VERSION=1.27.3
+ARG ALPINE_VERSION=3.24
+
+FROM golang:${GO_VERSION}-alpine${ALPINE_VERSION}
 
 ADD blob.tar.gz /
 

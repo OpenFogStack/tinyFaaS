@@ -21,6 +21,10 @@ const (
 	TmpDir = "./tmp"
 )
 
+// ErrInvalidFunctionName is returned when a function name contains
+// non-alphanumeric characters.
+var ErrInvalidFunctionName = errors.New("invalid function name")
+
 type ManagementService struct {
 	id                    string
 	backend               Backend
@@ -44,7 +48,6 @@ type Handler interface {
 }
 
 func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rproxyConfigPort int, tfBackend Backend) *ManagementService {
-
 	ms := &ManagementService{
 		id:                  id,
 		backend:             tfBackend,
@@ -58,10 +61,9 @@ func New(id string, rproxyListenAddress string, rproxyPort map[string]int, rprox
 }
 
 func (ms *ManagementService) createFunction(name string, env string, threads int, funczip []byte, subfolderPath string, envs map[string]string) (string, error) {
-
 	// only allow alphanumeric characters
 	if !util.IsAlphaNumeric(name) {
-		return "", fmt.Errorf("function name %s contains non-alphanumeric characters", name)
+		return "", fmt.Errorf("%w: %s contains non-alphanumeric characters", ErrInvalidFunctionName, name)
 	}
 
 	// make a uuidv4 for the function
@@ -191,7 +193,6 @@ func (ms *ManagementService) createFunction(name string, env string, threads int
 }
 
 func (ms *ManagementService) Logs() (io.Reader, error) {
-
 	var logs bytes.Buffer
 
 	for name := range ms.functionHandlers {
@@ -212,7 +213,6 @@ func (ms *ManagementService) Logs() (io.Reader, error) {
 }
 
 func (ms *ManagementService) LogsFunction(name string) (io.Reader, error) {
-
 	fh, ok := ms.functionHandlers[name]
 	if !ok {
 		return nil, fmt.Errorf("function %s not found", name)
@@ -239,7 +239,6 @@ func (ms *ManagementService) Wipe() error {
 	return nil
 }
 func (ms *ManagementService) Delete(name string) error {
-
 	fh, ok := ms.functionHandlers[name]
 	if !ok {
 		return fmt.Errorf("function %s not found", name)
@@ -295,41 +294,39 @@ func (ms *ManagementService) Delete(name string) error {
 }
 
 func (ms *ManagementService) Upload(name string, env string, threads int, zipped string, envs map[string]string) (string, error) {
-
 	// b64 decode zip
 	zip, err := base64.StdEncoding.DecodeString(zipped)
 	if err != nil {
-		// w.WriteHeader(http.StatusBadRequest)
-		log.Println(err)
 		return "", err
 	}
 
 	// create function handler
 	n, err := ms.createFunction(name, env, threads, zip, "", envs)
-
 	if err != nil {
-		// w.WriteHeader(http.StatusInternalServerError)
-		log.Println(err)
 		return "", err
 	}
 
 	// return success
-	// w.WriteHeader(http.StatusOK)
 	r := ""
 	for prot, port := range ms.rproxyPort {
-		r += fmt.Sprintf("%s://%s:%d/%s\n", prot, ms.rproxyListenAddress, port, n)
+		// If ms.rproxyListenAddress is empty means that tinyFaaS accepts
+		// connection from any interface, including "localhost". We need to set
+		// this value to print a meaningful HTTP/COAP/gRPC address.
+		listenAddr := ms.rproxyListenAddress
+		if ms.rproxyListenAddress == "" {
+			listenAddr = "localhost"
+		}
+
+		r += fmt.Sprintf("%s://%s:%d/%s\n", prot, listenAddr, port, n)
 	}
 
 	return r, nil
 }
 
 func (ms *ManagementService) UrlUpload(name string, env string, threads int, funcurl string, subfolder string, envs map[string]string) (string, error) {
-
 	// download url
 	resp, err := http.Get(funcurl)
 	if err != nil {
-		// w.WriteHeader(http.StatusBadRequest)
-		log.Println(err)
 		return "", err
 	}
 
@@ -338,22 +335,16 @@ func (ms *ManagementService) UrlUpload(name string, env string, threads int, fun
 	zip, err := io.ReadAll(resp.Body)
 
 	if err != nil {
-		// w.WriteHeader(http.StatusBadRequest)
-		log.Println(err)
 		return "", err
 	}
 
 	// create function handler
 	n, err := ms.createFunction(name, env, threads, zip, subfolder, envs)
-
 	if err != nil {
-		// w.WriteHeader(http.StatusInternalServerError)
-		log.Println(err)
 		return "", err
 	}
 
 	// return success
-	// w.WriteHeader(http.StatusOK)
 	r := ""
 	for prot, port := range ms.rproxyPort {
 		r += fmt.Sprintf("%s://%s:%d/%s\n", prot, ms.rproxyListenAddress, port, n)
